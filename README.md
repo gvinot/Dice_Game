@@ -73,25 +73,25 @@ atouts-mythiques/
 Lobby → Salle d'attente → [Manche N]
                               │
                     ┌─────────▼─────────┐
-                    │   Phase Paris      │  Chaque joueur voit ses dés
-                    │   (simultané)      │  et parie 0..N plis
+                    │   Phase Paris     │  Chaque joueur voit ses dés
+                    │   (simultané)     │  et parie 0..N plis
                     └─────────┬─────────┘
                               │ (quand tous ont parié)
                     ┌─────────▼─────────┐
-                    │   Phase Jeu        │  Tour par tour, chaque
-                    │   (tour par tour)  │  joueur choisit un dé
+                    │   Phase Jeu       │  Tour par tour, chaque
+                    │   (tour par tour) │  joueur choisit un dé
                     └─────────┬─────────┘
                               │ (quand tous ont joué)
                     ┌─────────▼─────────┐
-                    │  Résultat du pli   │  Qui gagne ? Bonus ?
+                    │  Résultat du pli  │  Qui gagne ? Bonus ?
                     └─────────┬─────────┘
                               │
                     ┌─────────▼─────────┐
-                    │  Répéter N fois    │  N = roundNumber
+                    │  Répéter N fois   │  N = roundNumber
                     └─────────┬─────────┘
                               │
                     ┌─────────▼─────────┐
-                    │  Scores de manche  │  Calcul pari/plis + bonus
+                    │  Scores de manche │  Calcul pari/plis + bonus
                     └─────────┬─────────┘
                               │
                       Manche suivante (chef de salle)

@@ -6,7 +6,7 @@
   <title>⚔️ Atouts Mythiques</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;700;900&family=Crimson+Pro:ital,wght@0,300;0,400;0,600;1,300&display=swap" rel="stylesheet">
-  <script src="/socket.io/socket.io.js"></script>
+<script src="/socket.io/socket.io.js"></script>
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
@@ -264,6 +264,22 @@
     .toast.success { background: #0a2a14; border: 1px solid #4e9e6e; color: #80dfa0; }
     @keyframes slideUp { from { opacity: 0; transform: translateX(-50%) translateY(16px); } to { opacity: 1; transform: translateX(-50%) translateY(0); } }
 
+    /* ── MODE BLUFF ── */
+    #bluff-toggle:checked + #bluff-toggle-track { background: #e8704a; }
+    #bluff-toggle:checked ~ #bluff-toggle-thumb { transform: translateX(22px); background: #fff; }
+    #bluff-toggle-thumb { pointer-events: none; }
+
+    #bluff-btn.glow {
+      background: rgba(232,112,74,.25);
+      border-color: #e8704a;
+      box-shadow: 0 0 0 0 rgba(232,112,74,.6);
+      animation: bluff-pulse 1.2s ease-in-out infinite;
+    }
+    @keyframes bluff-pulse {
+      0%,100% { box-shadow: 0 0 0 0 rgba(232,112,74,.5); }
+      50%      { box-shadow: 0 0 0 8px rgba(232,112,74,0); }
+    }
+
     /* ── UTILITAIRES ── */
     .w-full { width: 100%; }
     .text-muted { color: var(--muted); font-style: italic; font-size: .88rem; text-align: center; }
@@ -313,11 +329,45 @@
       <h3>Code de la salle</h3>
       <div id="room-code-display" class="room-code-badge">····</div>
       <div class="code-hint">Partagez ce code à vos amis</div>
+      <div id="waiting-rounds-info" class="text-muted small" style="margin-top: 4px;"></div>
     </div>
 
     <div class="ornament">⸻ ✦ ⸻</div>
 
+    <!-- Sélecteur de manches : visible uniquement par le chef -->
+    <div id="rounds-selector" class="panel w-full hidden">
+      <h3 style="text-align:center; margin-bottom: 10px;">Nombre de manches</h3>
+      <div style="display:flex; align-items:center; justify-content:center; gap: 20px;">
+        <button class="bet-btn" onclick="changeRounds(-1)" style="font-size:1.5rem;">−</button>
+        <span id="rounds-display" style="font-family:'Cinzel',serif; font-size:2rem; color:var(--gold-lt); min-width:44px; text-align:center;">10</span>
+        <button class="bet-btn" onclick="changeRounds(+1)" style="font-size:1.5rem;">+</button>
+      </div>
+      <p id="rounds-hint" class="text-muted small" style="text-align:center; margin-top:8px;"></p>
+    </div>
+
     <div id="waiting-players-list" class="players-list w-full"></div>
+
+    <!-- Toggle bluff mode (chef uniquement) -->
+    <div id="bluff-toggle-wrap" class="w-full"
+         style="display:none; align-items:center; justify-content:space-between;
+                background:var(--panel); border:1px solid var(--border);
+                border-radius:10px; padding:12px 16px;">
+      <div>
+        <div style="font-family:'Cinzel',serif; font-size:.85rem; color:var(--text);">🎭 Mode Bluff</div>
+        <div style="font-size:.78rem; color:var(--muted); font-style:italic;">Aucune restriction de couleur</div>
+      </div>
+      <label style="position:relative; display:inline-block; width:48px; height:26px; cursor:pointer;">
+        <input type="checkbox" id="bluff-toggle" onchange="setBluffMode(this.checked)"
+               style="opacity:0; width:0; height:0; position:absolute;">
+        <span id="bluff-toggle-track" style="
+          position:absolute; inset:0; border-radius:26px;
+          background:var(--border); transition: background .2s;"></span>
+        <span id="bluff-toggle-thumb" style="
+          position:absolute; top:3px; left:3px;
+          width:20px; height:20px; border-radius:50%;
+          background:var(--muted); transition: transform .2s, background .2s;"></span>
+      </label>
+    </div>
 
     <p class="text-muted small">2 à 6 joueurs</p>
   </div>
@@ -367,6 +417,8 @@
     <div class="info-bar" style="margin-top: 10px;">
       <div class="info-pill">Manche <span id="play-round-num">1</span></div>
       <div class="info-pill">Pli <span id="play-trick-num">1</span> / <span id="play-round-total">?</span></div>
+      <!-- Badge mode bluff -->
+      <div id="bluff-mode-badge" class="info-pill hidden" style="color:#e8704a; border-color:rgba(232,112,74,.3);">🎭 Bluff</div>
     </div>
 
     <div id="turn-banner" class="turn-banner waiting w-full">…</div>
@@ -387,6 +439,16 @@
       <div id="quick-scores" class="mini-score"></div>
     </div>
   </div>
+
+  <!-- Bouton BLUFF flottant -->
+  <button id="bluff-btn" class="hidden" onclick="callBluff()"
+    style="position:fixed; bottom:80px; left:20px; z-index:50;
+           padding:10px 18px; border-radius:24px; border:2px solid rgba(232,112,74,.5);
+           background:rgba(232,112,74,.1); color:#e8704a;
+           font-family:'Cinzel',serif; font-size:.9rem; font-weight:700;
+           cursor:pointer; transition: all .2s; letter-spacing:.06em;">
+    🎭 Bluff !
+  </button>
 </div>
 
 <!-- ════════════════════════════════════ -->
@@ -445,10 +507,66 @@
     </div>
     <div class="ornament">⸻ ✦ ⸻</div>
     <div id="final-scores-table" class="score-table w-full"></div>
+
+    <!-- Rejoindre pendant la fin de partie -->
+    <div class="panel w-full" style="text-align:center;">
+      <p class="text-muted small">D'autres joueurs peuvent encore rejoindre</p>
+      <div id="gameover-code" class="room-code-badge" style="font-size:1.6rem; margin-top: 4px;"></div>
+    </div>
+
+    <!-- Liste des joueurs présents -->
+    <div id="gameover-players" class="players-list w-full"></div>
   </div>
 
   <div class="screen-footer">
-    <button class="btn btn-secondary" onclick="location.reload()">↩ Retour à l'accueil</button>
+    <!-- Chef : proposer une nouvelle partie -->
+    <button id="gameover-restart-btn" class="btn btn-primary hidden" onclick="requestRestart()">
+      🔄 Proposer une nouvelle partie
+    </button>
+    <button class="btn btn-secondary" onclick="location.reload()">↩ Quitter</button>
+  </div>
+</div>
+
+<!-- ════════════════════════════════════ -->
+<!-- ÉCRAN 8 · VOTE NOUVELLE PARTIE      -->
+<!-- ════════════════════════════════════ -->
+<div id="screen-restart-vote" class="screen">
+  <div class="screen-body">
+    <div class="fc" style="margin-top: 24px; gap: 4px;">
+      <div class="title-main" style="font-size: clamp(1.4rem,5vw,2rem);">🔄 Nouvelle partie ?</div>
+      <div class="title-sub">En attente des votes</div>
+    </div>
+
+    <div class="ornament">⸻ ✦ ⸻</div>
+
+    <!-- Votes en cours -->
+    <div id="vote-players-list" class="players-list w-full"></div>
+
+    <!-- Rejoindre pendant le vote -->
+    <div class="panel w-full" style="text-align:center;">
+      <p class="text-muted small">Nouveaux joueurs — entrez ce code</p>
+      <div id="vote-room-code" class="room-code-badge" style="font-size:1.6rem; margin-top: 4px;"></div>
+    </div>
+
+    <!-- Boutons vote (non-chef) -->
+    <div id="vote-buttons" class="fc hidden" style="gap: 10px;">
+      <p class="text-muted">Voulez-vous rejouer ?</p>
+      <div style="display:flex; gap: 12px; width:100%; max-width:340px;">
+        <button class="btn btn-primary" style="flex:1;" onclick="voteRestart(true)">✅ Oui</button>
+        <button class="btn btn-ghost"   style="flex:1;" onclick="voteRestart(false)">❌ Non</button>
+      </div>
+    </div>
+
+    <!-- Message après vote -->
+    <div id="vote-done-msg" class="text-muted hidden">Vote enregistré — en attente du chef…</div>
+  </div>
+
+  <div class="screen-footer">
+    <!-- Chef : lancer quand il est prêt -->
+    <button id="launch-restart-btn" class="btn btn-primary hidden" onclick="launchRestart()">
+      ▶ Lancer la nouvelle partie
+    </button>
+    <p id="launch-restart-wait" class="text-muted hidden">En attente du chef de salle…</p>
   </div>
 </div>
 
@@ -516,12 +634,31 @@ socket.on('room-joined', ({ code, room }) => {
   renderWaiting(room);
 });
 
+socket.on('bluff-resolved', ({ room, bluffState }) => {
+  S.room   = room;
+  S.isHost = room.hostId === S.myId;
+  showBluffOverlay(bluffState);
+});
+
+// Mise à jour privée de la main après un bluff confirmé (dé rendu à l'accusé)
+socket.on('hand-updated', ({ hand }) => {
+  S.myHand = hand;
+  // Si on est sur l'écran de jeu, rafraîchir la main affichée
+  if (S.room) renderPlaying(S.room);
+});
+
 socket.on('room-updated', (room) => {
   S.room   = room;
   S.isHost = room.hostId === S.myId;
-  if (room.phase === 'waiting') renderWaiting(room);
-  if (room.phase === 'betting') updateBettingStatus(room);
-  if (room.phase === 'playing') renderPlaying(room);
+  // Si la partie reprend après un bluff, fermer l'overlay
+  if (room.phase === 'playing') {
+    document.getElementById('bluff-overlay').style.display = 'none';
+  }
+  if (room.phase === 'waiting')      renderWaiting(room);
+  if (room.phase === 'betting')      updateBettingStatus(room);
+  if (room.phase === 'playing')      renderPlaying(room);
+  if (room.phase === 'game-over')    renderGameOver(room);
+  if (room.phase === 'restart-vote') renderRestartVote(room);
 });
 
 socket.on('round-started', ({ room, hands }) => {
@@ -539,17 +676,36 @@ socket.on('trick-resolved', ({ room, winnerId, winnerName, plays, newBonuses }) 
   renderTrickResult(room, plays, winnerId, winnerName, newBonuses);
 });
 
-socket.on('round-ended', ({ room, roundScores, isLastRound }) => {
+socket.on('round-ended', ({ room, roundScores, bluffScores, isLastRound }) => {
   S.room     = room;
   S.isMyTurn = false;
   if (isLastRound) renderGameOver(room);
-  else             renderRoundScore(room, roundScores);
+  else             renderRoundScore(room, roundScores, bluffScores ?? {});
 });
 
 socket.on('player-left', ({ name, room }) => {
-  S.room = room;
-  showToast(`${name} a quitté la salle`, 'info');
-  if (room.phase === 'waiting') renderWaiting(room);
+  S.room   = room;
+  S.isHost = room.hostId === S.myId;
+  showToast(`${name} a quitté la partie`, 'info');
+
+  // Mettre à jour la main locale si on est encore dedans
+  // (les indices peuvent avoir changé mais S.myHand reste valide côté client)
+  switch (room.phase) {
+    case 'waiting':      renderWaiting(room);      break;
+    case 'betting':      updateBettingStatus(room); break;
+    case 'playing':      renderPlaying(room);       break;
+    case 'trick-result': /* le serveur a déjà résolu si besoin */  break;
+    case 'round-score':  /* rien à faire */          break;
+    case 'game-over':    renderGameOver(room);      break;
+  }
+});
+
+socket.on('kicked-to-lobby', ({ reason }) => {
+  // Déconnexion propre du channel socket avant rechargement
+  socket.disconnect();
+  // Un rechargement complet garantit un état vierge — aucun risque de réception parasite
+  alert(reason); // alert bloquant pour que l'utilisateur lise avant le reload
+  location.reload();
 });
 
 socket.on('error', msg => showToast(msg, 'error'));
@@ -577,7 +733,20 @@ function showScreen(id) {
   document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
   const el = document.getElementById(id);
   el.classList.add('active');
-  el.scrollTop = 0; // ← remonte toujours en haut du bon écran
+  el.scrollTop = 0;
+}
+
+// ── SÉLECTEUR MANCHES ────────────────────────────────────
+let S_chosenRounds = 10;
+
+function changeRounds(delta) {
+  const max = S.room?.absoluteMax ?? 18;
+  S_chosenRounds = Math.max(1, Math.min(max, S_chosenRounds + delta));
+  document.getElementById('rounds-display').textContent = S_chosenRounds;
+  document.getElementById('rounds-hint').textContent =
+    `Max ${max} avec ${S.room?.players?.length ?? '?'} joueur(s)`;
+  // Envoyer le choix au serveur en temps réel
+  socket.emit('set-max-rounds', { code: S.roomCode, maxRounds: S_chosenRounds });
 }
 
 // ── ACTIONS ──────────────────────────────────────────────
@@ -585,7 +754,7 @@ function createRoom() {
   const name = document.getElementById('input-name').value.trim();
   if (!name) return showToast('Entrez votre prénom', 'error');
   S.myName = name;
-  socket.emit('create-room', { name });
+  socket.emit('create-room', { name, maxRounds: 10 }); // valeur par défaut, modifiable dans la salle
 }
 
 function joinRoom() {
@@ -628,6 +797,7 @@ function nextRound()  { socket.emit('next-round',  { code: S.roomCode }); }
 
 function renderWaiting(room) {
   showScreen('screen-waiting');
+  updateRulesFab('waiting');
   document.getElementById('room-code-display').textContent = room.code;
   document.getElementById('waiting-players-list').innerHTML =
     room.players.map(p => `
@@ -637,7 +807,48 @@ function renderWaiting(room) {
         ${p.id === room.hostId ? '<span class="badge">Chef de salle</span>' : ''}
       </div>`).join('');
 
-  const startBtn  = document.getElementById('start-btn');
+  // Toggle bluff mode (chef uniquement)
+  const bluffWrap   = document.getElementById('bluff-toggle-wrap');
+  const bluffToggle = document.getElementById('bluff-toggle');
+  const bluffTrack  = document.getElementById('bluff-toggle-track');
+  const bluffThumb  = document.getElementById('bluff-toggle-thumb');
+  if (S.isHost) {
+    bluffWrap.style.display = 'flex';
+    bluffToggle.checked = room.bluffMode ?? false;
+    bluffTrack.style.background = room.bluffMode ? '#e8704a' : 'var(--border)';
+    bluffThumb.style.transform  = room.bluffMode ? 'translateX(22px)' : 'none';
+    bluffThumb.style.background = room.bluffMode ? '#fff' : 'var(--muted)';
+  } else {
+    bluffWrap.style.display = 'none';
+  }
+
+  // Sélecteur de manches (chef uniquement)
+  const selector = document.getElementById('rounds-selector');
+  const actual   = room.absoluteMax ?? room.maxRounds;
+  const chosen   = room.chosenMaxRounds ?? room.maxRounds;
+  const wasReduced = (room.chosenMaxRounds ?? 0) > actual;
+
+  if (S.isHost) {
+    selector.classList.remove('hidden');
+    // Synchroniser le compteur local avec la valeur serveur
+    S_chosenRounds = chosen;
+    document.getElementById('rounds-display').textContent = chosen;
+    document.getElementById('rounds-hint').textContent = wasReduced
+      ? `⚠️ Réduit à ${actual} (trop de joueurs)`
+      : `Max ${actual} avec ${room.players.length} joueur(s)`;
+  } else {
+    selector.classList.add('hidden');
+  }
+
+  // Info manches visible par tous
+  const roundsInfo = document.getElementById('waiting-rounds-info');
+  if (roundsInfo) {
+    roundsInfo.innerHTML = `<span style="color:var(--gold-lt);">${chosen} manche${chosen > 1 ? 's' : ''}</span>${
+      wasReduced ? ` <span class="small" style="font-style:italic;">(max ${actual} avec ${room.players.length} joueurs)</span>` : ''
+    }`;
+  }
+
+  const startBtn   = document.getElementById('start-btn');
   const waitingMsg = document.getElementById('waiting-msg');
   if (S.isHost) {
     startBtn.classList.remove('hidden');
@@ -654,6 +865,7 @@ function renderWaiting(room) {
 
 function renderBetting(room) {
   showScreen('screen-betting');
+  updateRulesFab('betting');
   document.getElementById('bet-round-num').textContent  = room.roundNumber;
   document.getElementById('bet-max-rounds').textContent = room.maxRounds;
   document.getElementById('my-hand-betting').innerHTML  =
@@ -690,6 +902,7 @@ function updateBettingStatus(room) {
 
 function renderPlaying(room) {
   showScreen('screen-playing');
+  updateRulesFab('playing');
 
   const isMyTurn = room.currentPlayerId === S.myId;
   S.isMyTurn     = isMyTurn;
@@ -700,7 +913,16 @@ function renderPlaying(room) {
 
   // Bannière
   const banner = document.getElementById('turn-banner');
-  if (isMyTurn) {
+  banner.style.background = '';
+  banner.style.border     = '';
+  banner.style.color      = '';
+  if (room.bluffWindowOpen) {
+    banner.textContent = '🎭 Fenêtre bluff ouverte — 4 secondes pour accuser !';
+    banner.className   = 'turn-banner w-full';
+    banner.style.background = 'rgba(232,112,74,.12)';
+    banner.style.border     = '1px solid rgba(232,112,74,.4)';
+    banner.style.color      = '#e8704a';
+  } else if (isMyTurn) {
     banner.textContent = '🎯 C\'est votre tour — choisissez un dé !';
     banner.className   = 'turn-banner my-turn w-full';
   } else {
@@ -738,18 +960,34 @@ function renderPlaying(room) {
     }).join('');
 
   // Main + règle de couleur
-  const validSet  = new Set(getValidIndices(S.myHand, room.currentTrick));
+  // Priorité : accusedMustFollow > bluffMode > mode normal
+  const mustFollow = room.accusedMustFollow;
+  const iAmAccused = mustFollow?.playerId === S.myId;
+  let validSet;
+  if (iAmAccused) {
+    // Forcé à jouer couleur ou atout — même en mode bluff
+    validSet = new Set(getValidIndices(S.myHand, room.currentTrick));
+  } else if (room.bluffMode) {
+    validSet = new Set(S.myHand.map((_, i) => i));
+  } else {
+    validSet = new Set(getValidIndices(S.myHand, room.currentTrick));
+  }
   const leadType  = room.currentTrick?.[0]?.dieType;
   const hintEl    = document.getElementById('color-constraint-hint');
 
-  if (isMyTurn && room.currentTrick.length > 0 && NORMAL_TYPES.has(leadType)) {
+  if (iAmAccused && isMyTurn) {
+    const leadType2 = room.accusedMustFollow.leadType;
+    const cfg = DIE_CFG[leadType2] || {};
+    hintEl.textContent = `🚫 Bluff confirmé — jouez ${cfg.emoji} ${cfg.label} ou un atout`;
+    hintEl.classList.remove('hidden');
+  } else if (!room.bluffMode && isMyTurn && room.currentTrick.length > 0 && NORMAL_TYPES.has(leadType)) {
     const canFollow = S.myHand.some(t => t === leadType);
     const cfg = DIE_CFG[leadType] || {};
     if (canFollow) {
       hintEl.textContent = `${cfg.emoji} Vous devez jouer la couleur ${cfg.label} ou un atout`;
       hintEl.classList.remove('hidden');
     } else {
-      hintEl.classList.add('hidden'); // pas la couleur → aucune contrainte, pas besoin d'indice
+      hintEl.classList.add('hidden');
     }
   } else {
     hintEl.classList.add('hidden');
@@ -759,18 +997,171 @@ function renderPlaying(room) {
   document.getElementById('my-hand-playing').innerHTML =
     S.myHand.map((t, i) => dieTile(t, i, isMyTurn, validSet.has(i))).join('');
 
-  // Bilan
+  // Bilan (Fix 3 : afficher le score bluff cumulé)
   document.getElementById('quick-scores').innerHTML =
-    room.players.map(p => `
-      <div class="mini-score-row">
-        <span>${p.name}</span>
+    room.players.map(p => {
+      const bluffTxt = (p.bluffScore && p.bluffScore !== 0)
+        ? ` <span style="color:${p.bluffScore > 0 ? '#6dd99a' : '#ff9090'}; font-size:.78rem;">(bluff ${p.bluffScore > 0 ? '+' : ''}${p.bluffScore})</span>`
+        : '';
+      return `<div class="mini-score-row">
+        <span>${p.name}${bluffTxt}</span>
         <span style="font-style:italic;">${p.tricksWon} / ${p.bet ?? '?'} pli${p.tricksWon !== 1 ? 's' : ''}</span>
         <span class="text-gold">${p.score} pts</span>
-      </div>`).join('');
+      </div>`;
+    }).join('');
+
+  // ── Mode bluff ─────────────────────────────────────────
+  const bluffBadge = document.getElementById('bluff-mode-badge');
+  const bluffBtn   = document.getElementById('bluff-btn');
+
+  if (room.bluffMode) {
+    bluffBadge.classList.remove('hidden');
+
+    const trick        = room.currentTrick ?? [];
+    const lastPlay     = trick[trick.length - 1];
+    const leadType2    = trick[0]?.dieType;
+    const alreadyCalled = room.bluffCalledThisTrick;
+
+    const canCallBluff = !alreadyCalled
+      && trick.length > 0
+      && lastPlay?.playerId !== S.myId
+      && NORMAL_TYPES.has(leadType2)
+      && !TRUMP_TYPES.has(lastPlay?.dieType)
+      && lastPlay?.dieType !== leadType2;
+
+    bluffBtn.classList.remove('hidden');
+    bluffBtn.disabled = !canCallBluff;
+    if (canCallBluff) {
+      bluffBtn.classList.add('glow');
+    } else {
+      bluffBtn.classList.remove('glow');
+    }
+  } else {
+    bluffBadge.classList.add('hidden');
+    bluffBtn.classList.add('hidden');
+    bluffBtn.classList.remove('glow');
+  }
+}
+
+// ── BLUFF ACTIONS ────────────────────────────────────────
+function setBluffMode(enabled) {
+  // Mise à jour visuelle immédiate du toggle
+  const track = document.getElementById('bluff-toggle-track');
+  const thumb = document.getElementById('bluff-toggle-thumb');
+  track.style.background = enabled ? '#e8704a' : 'var(--border)';
+  thumb.style.transform  = enabled ? 'translateX(22px)' : 'none';
+  thumb.style.background = enabled ? '#fff' : 'var(--muted)';
+  socket.emit('set-bluff-mode', { code: S.roomCode, enabled });
+}
+
+function callBluff() {
+  socket.emit('call-bluff', { code: S.roomCode });
+}
+
+function continueAfterBluff() {
+  socket.emit('continue-after-bluff', { code: S.roomCode });
+  document.getElementById('bluff-overlay').style.display = 'none';
+}
+
+// ── AFFICHAGE OVERLAY BLUFF ──────────────────────────────
+let bluffCountdownTimer = null;
+
+function showBluffOverlay(bs) {
+  const overlay     = document.getElementById('bluff-overlay');
+  const accusePhase = document.getElementById('bluff-accusation-phase');
+  const revealPhase = document.getElementById('bluff-reveal-phase');
+  const countdownEl = document.getElementById('bluff-countdown');
+
+  // Cacher le bouton bluff pendant la résolution
+  document.getElementById('bluff-btn').classList.add('hidden');
+
+  // Remplir l'accusation
+  document.getElementById('bluff-accuser-text').textContent =
+    `🎭 ${bs.callerName} accuse…`;
+  document.getElementById('bluff-accused-text').textContent =
+    `${bs.accusedName} d'avoir bluffé sur ${DIE_CFG[bs.leadType]?.emoji ?? ''} ${DIE_CFG[bs.leadType]?.label ?? bs.leadType}`;
+
+  // Dé de l'accusé
+  const dieEl = document.getElementById('bluff-accused-die');
+  dieEl.dataset.type = bs.accusedDie;
+  dieEl.innerHTML = `<div class="die-emoji">${DIE_CFG[bs.accusedDie]?.emoji ?? '?'}</div>
+    <div class="die-label">${DIE_CFG[bs.accusedDie]?.label ?? bs.accusedDie}</div>`;
+
+  accusePhase.style.display = 'block';
+  revealPhase.style.display = 'none';
+  overlay.style.display     = 'flex';
+
+  // Compte à rebours 3…2…1 puis révélation
+  if (bluffCountdownTimer) clearInterval(bluffCountdownTimer);
+  let count = 3;
+  countdownEl.textContent = count;
+
+  bluffCountdownTimer = setInterval(() => {
+    count--;
+    if (count > 0) {
+      countdownEl.textContent = count;
+    } else {
+      clearInterval(bluffCountdownTimer);
+      revealBluff(bs, accusePhase, revealPhase);
+    }
+  }, 1000);
+}
+
+function revealBluff(bs, accusePhase, revealPhase) {
+  accusePhase.style.display = 'none';
+  revealPhase.style.display = 'block';
+
+  const icon    = document.getElementById('bluff-verdict-icon');
+  const title   = document.getElementById('bluff-verdict-title');
+  const detail  = document.getElementById('bluff-verdict-detail');
+  const deltas  = document.getElementById('bluff-deltas');
+  const contBtn = document.getElementById('bluff-continue-btn');
+  const waitMsg = document.getElementById('bluff-wait-msg');
+
+  if (bs.isBluff) {
+    icon.textContent  = '💥';
+    title.textContent = 'BLUFF CONFIRMÉ !';
+    title.style.color = '#e8704a';
+    detail.textContent = `${bs.accusedName} avait bien la couleur. Il doit rejouer.`;
+  } else {
+    icon.textContent  = '❌';
+    title.textContent = 'PAS UN BLUFF !';
+    title.style.color = '#4e9e6e';
+    detail.textContent = `${bs.accusedName} n'avait pas la couleur. ${bs.callerName} perd des points.`;
+  }
+
+  // Deltas de score
+  const rows = [];
+  if (bs.isBluff) {
+    rows.push({ name: bs.callerName,  delta: bs.callerDelta,  icon: '🎯' });
+    rows.push({ name: bs.accusedName, delta: bs.accusedDelta, icon: '😅' });
+  } else {
+    rows.push({ name: bs.callerName, delta: bs.callerDelta, icon: '😬' });
+  }
+
+  deltas.innerHTML = rows.map(r => `
+    <div style="display:flex; justify-content:space-between; align-items:center;
+                background:var(--surface); border-radius:8px; padding:8px 14px;">
+      <span>${r.icon} ${r.name}</span>
+      <span style="font-family:'Cinzel',serif; font-weight:700;
+                   color:${r.delta > 0 ? '#6dd99a' : '#ff9090'};">
+        ${r.delta > 0 ? '+' : ''}${r.delta} pts bluff
+      </span>
+    </div>`).join('');
+
+  // Bouton continuer (chef uniquement)
+  if (S.isHost) {
+    contBtn.classList.remove('hidden');
+    waitMsg.classList.add('hidden');
+  } else {
+    contBtn.classList.add('hidden');
+    waitMsg.classList.remove('hidden');
+  }
 }
 
 function renderTrickResult(room, plays, winnerId, winnerName, newBonuses) {
   showScreen('screen-trick-result');
+  updateRulesFab('trick-result');
 
   document.getElementById('trick-winner-announce').textContent =
     `🏆 ${winnerName} remporte le pli !`;
@@ -789,8 +1180,8 @@ function renderTrickResult(room, plays, winnerId, winnerName, newBonuses) {
     (newBonuses && newBonuses.length > 0)
       ? newBonuses.map(b => `<div class="bonus-badge">${
           b.type === 'MINO_VS_GRIFFON'
-            ? '⭐ Minotaure bat Griffon (+20 pts)'
-            : '⭐ Sirène bat Minotaure (+30 pts)'
+            ? `⭐ Minotaure bat ${b.count} Griffon${b.count > 1 ? 's' : ''} (+${b.points} pts)`
+            : '⭐ Sirène bat Minotaure (+50 pts)'
         }</div>`).join('')
       : '';
 
@@ -824,26 +1215,45 @@ function renderTrickResult(room, plays, winnerId, winnerName, newBonuses) {
   }
 }
 
-function renderRoundScore(room, roundScores) {
+function renderRoundScore(room, roundScores, bluffScores = {}) {
   showScreen('screen-score');
+  updateRulesFab('round-score');
   document.getElementById('score-round-label').textContent =
     `Manche ${room.roundNumber} / ${room.maxRounds}`;
 
   const sorted = [...room.players].sort((a, b) => b.score - a.score);
   document.getElementById('round-scores-table').innerHTML =
     sorted.map(p => {
-      const rs      = roundScores[p.id] ?? 0;
-      const sign    = rs > 0 ? '+' : '';
-      const cls     = rs > 0 ? 'pos' : rs < 0 ? 'neg' : 'zero';
-      const bonusTxt = p.bonuses.length > 0
-        ? `<span style="color:var(--gold-lt);">⭐ +${p.bonuses.reduce((s,b)=>s+b.points,0)}</span>` : '';
+      const rs    = roundScores[p.id] ?? 0;   // paris/plis + bonuses de pli
+      const bs    = bluffScores[p.id] ?? 0;   // bluff de la manche
+      const total = rs + bs;
+      const sign  = total > 0 ? '+' : '';
+      const cls   = total > 0 ? 'pos' : total < 0 ? 'neg' : 'zero';
+
+      // Ligne de détail sous le nom
+      const bonusPts = p.bonuses.reduce((s, b) => s + b.points, 0);
+      const details  = [`${p.tricksWon} pli${p.tricksWon !== 1 ? 's' : ''} / pari ${p.bet}`];
+      if (bonusPts !== 0) details.push(`⭐ +${bonusPts}`);
+      if (bs !== 0)       details.push(`🎭 ${bs > 0 ? '+' : ''}${bs}`);
+
+      // Décomposition du total si plusieurs composantes
+      const baseOnly = rs - bonusPts;
+      const parts = [];
+      if (baseOnly !== 0) parts.push(`${baseOnly > 0 ? '+' : ''}${baseOnly} paris`);
+      if (bonusPts !== 0) parts.push(`+${bonusPts} bonus`);
+      if (bs !== 0)       parts.push(`${bs > 0 ? '+' : ''}${bs} bluff`);
+      const breakdownHtml = parts.length > 1
+        ? `<div style="font-size:.7rem; color:var(--muted); font-style:italic; margin-top:2px;">${parts.join(' · ')}</div>`
+        : '';
+
       return `<div class="score-row">
         <div class="player-col">
           <span>${p.name}</span>
-          <span class="text-muted small">${p.tricksWon} pli${p.tricksWon!==1?'s':''} / pari ${p.bet} ${bonusTxt}</span>
+          <span class="text-muted small">${details.join(' · ')}</span>
         </div>
         <div class="detail-col">
-          <span class="round-delta ${cls}">${sign}${rs} pts</span>
+          <span class="round-delta ${cls}">${sign}${total} pts</span>
+          ${breakdownHtml}
           <span class="total-pts">${p.score} total</span>
         </div>
       </div>`;
@@ -857,6 +1267,7 @@ function renderRoundScore(room, roundScores) {
 
 function renderGameOver(room) {
   showScreen('screen-gameover');
+  updateRulesFab('game-over');
   const sorted = [...room.players].sort((a, b) => b.score - a.score);
   const medals  = ['🥇', '🥈', '🥉'];
   document.getElementById('final-scores-table').innerHTML =
@@ -870,6 +1281,98 @@ function renderGameOver(room) {
           <span class="total-pts">points</span>
         </div>
       </div>`).join('');
+
+  document.getElementById('gameover-code').textContent = room.code;
+  document.getElementById('gameover-players').innerHTML =
+    room.players.map(p => `
+      <div class="player-item ${p.id === room.hostId ? 'host' : ''}">
+        <span>${p.id === room.hostId ? '👑' : '👤'}</span>
+        <span>${p.name}</span>
+      </div>`).join('');
+
+  const btn = document.getElementById('gameover-restart-btn');
+  if (S.isHost) btn.classList.remove('hidden');
+  else          btn.classList.add('hidden');
+}
+
+function renderRestartVote(room) {
+  showScreen('screen-restart-vote');
+  updateRulesFab('restart-vote');
+  document.getElementById('vote-room-code').textContent = room.code;
+
+  // Liste des joueurs avec leur vote
+  document.getElementById('vote-players-list').innerHTML =
+    room.players.map(p => {
+      const v = p.restartVote;
+      const icon  = v === true ? '✅' : v === false ? '❌' : '⏳';
+      const label = v === true ? 'Oui' : v === false ? 'Non' : 'En attente…';
+      const cls   = p.id === room.hostId ? 'host' : '';
+      return `<div class="player-item ${cls}">
+        <span>${p.id === room.hostId ? '👑' : '👤'}</span>
+        <span style="flex:1;">${p.name}</span>
+        <span style="font-family:'Cinzel',serif; font-size:.85rem;">${icon} ${label}</span>
+      </div>`;
+    }).join('');
+
+  // Boutons / messages selon rôle et vote déjà posé
+  const myVote       = room.players.find(p => p.id === S.myId)?.restartVote;
+  const voteButtons  = document.getElementById('vote-buttons');
+  const voteDoneMsg  = document.getElementById('vote-done-msg');
+  const launchBtn    = document.getElementById('launch-restart-btn');
+  const launchWait   = document.getElementById('launch-restart-wait');
+
+  // Non-chef
+  if (!S.isHost) {
+    launchBtn.classList.add('hidden');
+    launchWait.classList.remove('hidden');
+    if (myVote === undefined || myVote === null) {
+      voteButtons.classList.remove('hidden');
+      voteDoneMsg.classList.add('hidden');
+    } else {
+      voteButtons.classList.add('hidden');
+      voteDoneMsg.classList.remove('hidden');
+      voteDoneMsg.textContent = myVote
+        ? '✅ Vous avez voté Oui — en attente du chef…'
+        : '❌ Vous avez voté Non — en attente du chef…';
+    }
+  } else {
+    // Chef
+    voteButtons.classList.add('hidden');
+    voteDoneMsg.classList.add('hidden');
+    launchWait.classList.add('hidden');
+    launchBtn.classList.remove('hidden');
+    const yesCount = room.players.filter(p => p.restartVote === true).length;
+    const total    = room.players.length;
+    launchBtn.textContent = `▶ Lancer (${yesCount}/${total} oui)`;
+  }
+}
+
+// ── Nouvelles actions ──────────────────────────────────────
+function requestRestart() { socket.emit('request-restart', { code: S.roomCode }); }
+function voteRestart(vote) { socket.emit('vote-restart', { code: S.roomCode, vote }); }
+function launchRestart()  { socket.emit('launch-restart',  { code: S.roomCode }); }
+
+// ── BOUTON RÈGLES FLOTTANT ───────────────────────────────
+const IN_GAME_PHASES = new Set(['betting','playing','trick-result','round-score']);
+
+function updateRulesFab(phase) {
+  const fab = document.getElementById('rules-fab');
+  if (IN_GAME_PHASES.has(phase)) {
+    fab.style.display = 'flex';
+  } else {
+    fab.style.display = 'none';
+  }
+}
+
+function openRules() {
+  const m = document.getElementById('rules-modal');
+  m.style.display = 'flex';
+}
+function closeRules() {
+  document.getElementById('rules-modal').style.display = 'none';
+}
+function closeRulesIfOutside(e) {
+  if (e.target === document.getElementById('rules-modal')) closeRules();
 }
 
 function showToast(msg, type = 'info') {
@@ -880,5 +1383,181 @@ function showToast(msg, type = 'info') {
   setTimeout(() => el.remove(), 3500);
 }
 </script>
+
+<!-- ════════════════════════════════════ -->
+<!-- OVERLAY BLUFF                        -->
+<!-- ════════════════════════════════════ -->
+<div id="bluff-overlay"
+  style="display:none; position:fixed; inset:0; z-index:300;
+         background:rgba(0,0,0,.85); backdrop-filter:blur(6px);
+         align-items:center; justify-content:center; padding:24px;">
+
+  <div style="background:var(--panel); border:2px solid rgba(232,112,74,.5);
+              border-radius:16px; width:100%; max-width:380px; padding:24px 20px;
+              text-align:center; position:relative;">
+
+    <!-- Phase accusation (avant révélation) -->
+    <div id="bluff-accusation-phase">
+      <div style="font-size:2.5rem; margin-bottom:8px;">🎭</div>
+      <div style="font-family:'Cinzel',serif; font-size:1.1rem; font-weight:700;
+                  color:#e8704a; letter-spacing:.06em; margin-bottom:6px;">
+        BLUFF APPELÉ !
+      </div>
+      <div id="bluff-accuser-text"
+           style="font-size:1rem; color:var(--text); margin-bottom:4px;"></div>
+      <div id="bluff-accused-text"
+           style="font-size:.9rem; color:var(--muted); font-style:italic; margin-bottom:20px;"></div>
+      <div style="display:flex; justify-content:center; gap:8px; flex-wrap:wrap; margin-bottom:20px;">
+        <div id="bluff-accused-die" class="die-tile" style="width:80px;height:88px;"></div>
+      </div>
+      <!-- Compte à rebours visuel -->
+      <div id="bluff-countdown"
+           style="font-family:'Cinzel',serif; font-size:2rem; color:var(--gold); margin-bottom:6px;">3</div>
+      <div style="font-size:.8rem; color:var(--muted); font-style:italic;">Révélation dans…</div>
+    </div>
+
+    <!-- Phase révélation (après countdown) -->
+    <div id="bluff-reveal-phase" style="display:none;">
+      <div id="bluff-verdict-icon" style="font-size:3rem; margin-bottom:8px;"></div>
+      <div id="bluff-verdict-title"
+           style="font-family:'Cinzel',serif; font-size:1.2rem; font-weight:900;
+                  letter-spacing:.08em; margin-bottom:10px;"></div>
+      <div id="bluff-verdict-detail"
+           style="font-size:.9rem; color:var(--muted); font-style:italic; margin-bottom:20px;"></div>
+
+      <!-- Deltas de score -->
+      <div id="bluff-deltas" style="display:flex; flex-direction:column; gap:6px; margin-bottom:20px;"></div>
+
+      <!-- Bouton continuer (chef uniquement) -->
+      <button id="bluff-continue-btn" class="btn btn-primary hidden" onclick="continueAfterBluff()">
+        Continuer →
+      </button>
+      <p id="bluff-wait-msg" class="text-muted hidden">En attente du chef de salle…</p>
+    </div>
+
+  </div>
+</div>
+
+<!-- ════════════════════════════════════ -->
+<!-- BOUTON RÈGLES FLOTTANT              -->
+<!-- ════════════════════════════════════ -->
+<button id="rules-fab" onclick="openRules()"
+  style="display:none; position:fixed; bottom:24px; right:20px; z-index:50;
+         width:44px; height:44px; border-radius:50%;
+         background:var(--panel); border:1px solid var(--border);
+         color:var(--gold); font-size:1.3rem; cursor:pointer;
+         box-shadow:0 4px 16px rgba(0,0,0,.5);
+         align-items:center; justify-content:center;">⚔️</button>
+
+<!-- ════════════════════════════════════ -->
+<!-- MODALE RÈGLES                        -->
+<!-- ════════════════════════════════════ -->
+<div id="rules-modal" onclick="closeRulesIfOutside(event)"
+  style="display:none; position:fixed; inset:0; z-index:200;
+         background:rgba(0,0,0,.78); backdrop-filter:blur(4px);
+         align-items:center; justify-content:center; padding:20px;">
+
+  <div style="background:var(--panel); border:1px solid var(--border);
+              border-radius:16px; width:100%; max-width:400px;
+              padding:20px 18px 24px; position:relative;
+              max-height:90dvh; overflow-y:auto;">
+
+    <button onclick="closeRules()" style="position:absolute; top:12px; right:14px;
+      background:none; border:none; color:var(--muted); font-size:1.4rem; cursor:pointer;">✕</button>
+
+    <div style="font-family:'Cinzel',serif; font-size:1rem; font-weight:700;
+                color:var(--gold-lt); text-align:center; letter-spacing:.1em; margin-bottom:18px;">
+      ⚔️ Règles des Atouts
+    </div>
+
+    <!-- Section hiérarchie -->
+    <div style="font-family:'Cinzel',serif; font-size:.68rem; color:var(--muted);
+                letter-spacing:.12em; text-transform:uppercase; margin-bottom:10px;">
+      Hiérarchie cyclique
+    </div>
+
+    <!-- Cycle : Sirène → Mino → Griffon → (Sirène) -->
+    <div style="display:flex; align-items:center; justify-content:center; gap:6px; flex-wrap:nowrap; margin-bottom:10px;">
+
+      <div class="die-tile" data-type="SIRENE" style="width:70px;height:76px;flex-shrink:0;">
+        <div class="die-emoji">🧜</div>
+        <div class="die-label">Sirène</div>
+      </div>
+
+      <div style="text-align:center; flex-shrink:0;">
+        <div style="font-size:.6rem; color:var(--muted); font-style:italic;">bat</div>
+        <div style="color:var(--gold); font-size:1.2rem;">→</div>
+      </div>
+
+      <div class="die-tile" data-type="MINOTAURE" style="width:70px;height:76px;flex-shrink:0;">
+        <div class="die-emoji">🐂</div>
+        <div class="die-label">Minotaure</div>
+      </div>
+
+      <div style="text-align:center; flex-shrink:0;">
+        <div style="font-size:.6rem; color:var(--muted); font-style:italic;">bat</div>
+        <div style="color:var(--gold); font-size:1.2rem;">→</div>
+      </div>
+
+      <div class="die-tile" data-type="GRIFFON" style="width:70px;height:76px;flex-shrink:0;">
+        <div class="die-emoji">🦅</div>
+        <div class="die-label">Griffon</div>
+      </div>
+
+      <div style="text-align:center; flex-shrink:0;">
+        <div style="font-size:.6rem; color:var(--muted); font-style:italic;">bat</div>
+        <div style="color:var(--gold); font-size:1.2rem;">↩</div>
+      </div>
+
+    </div>
+
+    <!-- Cas spécial 3 atouts -->
+    <div style="background:rgba(201,150,58,.08); border:1px solid rgba(201,150,58,.3);
+                border-radius:10px; padding:10px 14px; margin-bottom:16px;
+                display:flex; align-items:center; gap:10px;">
+      <span style="font-size:1.6rem; flex-shrink:0;">🧜🐂🦅</span>
+      <div>
+        <div style="font-family:'Cinzel',serif; font-size:.8rem; color:var(--gold-lt); margin-bottom:2px;">
+          3 atouts présents
+        </div>
+        <div style="font-size:.82rem; color:var(--muted); font-style:italic;">
+          La Sirène gagne toujours
+        </div>
+      </div>
+    </div>
+
+    <!-- Séparateur -->
+    <div style="border-top:1px solid var(--border); margin:14px 0;"></div>
+
+    <!-- Bonus -->
+    <div style="font-family:'Cinzel',serif; font-size:.68rem; color:var(--muted);
+                letter-spacing:.12em; text-transform:uppercase; margin-bottom:10px;">
+      Bonus de pli
+    </div>
+
+    <div style="display:flex; align-items:center; gap:12px; margin-bottom:10px;
+                background:var(--surface); border:1px solid var(--border);
+                border-radius:10px; padding:10px 14px;">
+      <span style="font-size:1.5rem; flex-shrink:0;">🐂 › 🦅</span>
+      <div style="flex:1;">
+        <div style="font-family:'Cinzel',serif; font-size:.8rem; color:var(--gold-lt);">Minotaure bat Griffon(s)</div>
+        <div style="font-size:.8rem; color:var(--muted); font-style:italic;">+30 pts par Griffon</div>
+      </div>
+      <div style="font-family:'Cinzel',serif; font-size:1.1rem; color:#6dd99a; font-weight:700;">×30</div>
+    </div>
+
+    <div style="display:flex; align-items:center; gap:12px;
+                background:var(--surface); border:1px solid var(--border);
+                border-radius:10px; padding:10px 14px;">
+      <span style="font-size:1.5rem; flex-shrink:0;">🧜 › 🐂</span>
+      <div style="flex:1;">
+        <div style="font-family:'Cinzel',serif; font-size:.8rem; color:var(--gold-lt);">Sirène bat Minotaure</div>
+        <div style="font-size:.8rem; color:var(--muted); font-style:italic;">Bonus fixe</div>
+      </div>
+      <div style="font-family:'Cinzel',serif; font-size:1.1rem; color:#6dd99a; font-weight:700;">+50</div>
+    </div>
+
+  </div>
+</div>
 </body>
 </html>

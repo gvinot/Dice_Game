@@ -35,17 +35,21 @@ const NORMAL_TYPES = new Set([DieType.ROUGE, DieType.JAUNE, DieType.VIOLET, DieT
  */
 function getValidIndices(hand, trick) {
   if (trick.length === 0) return hand.map((_, i) => i);
+
   const leadType = trick[0].dieType;
-  if (!NORMAL_TYPES.has(leadType)) return hand.map((_, i) => i);
+  if (!NORMAL_TYPES.has(leadType)) return hand.map((_, i) => i); // entame atout : libre
 
+  // Entame dé normal : le joueur a-t-il la couleur ?
   const canFollow = hand.some(t => t === leadType);
-  if (!canFollow) return hand.map((_, i) => i); // ← pas la couleur = TOUT est valide
+  if (!canFollow) return hand.map((_, i) => i); // pas la couleur → défausse libre
 
+  // A la couleur → doit jouer cette couleur OU un atout
   return hand.reduce((acc, t, i) => {
     if (t === leadType || TRUMP_TYPES.has(t)) acc.push(i);
     return acc;
   }, []);
 }
+
 function randomFrom(arr) {
   return arr[Math.floor(Math.random() * arr.length)];
 }
@@ -171,6 +175,7 @@ function makePlayer(socketId, name) {
     id        : socketId,
     name,
     score     : 0,
+    bluffScore: 0,   // cumulatif sur toute la partie, jamais réinitialisé
     bet       : null,
     tricksWon : 0,
     bonuses   : [],
@@ -184,22 +189,31 @@ function publicRoom(room) {
     code            : room.code,
     hostId          : room.hostId,
     phase           : room.phase,
+    bluffMode            : room.bluffMode ?? false,
+    bluffState           : room.bluffState ?? null,
+    bluffCalledThisTrick : room.bluffCalledThisTrick ?? false,
+    bluffWindowOpen      : room.bluffWindowTimer ?? false,
+    accusedMustFollow    : room.accusedMustFollow ?? null, // { playerId, leadType }
     roundNumber     : room.roundNumber,
     maxRounds       : room.maxRounds,
+    chosenMaxRounds : room.chosenMaxRounds,
+    absoluteMax     : Math.floor(36 / room.players.length),
     trickNumber     : room.trickNumber,
-    currentPlayerId : room.phase === 'playing'
+    currentPlayerId : (room.phase === 'playing' && !room.bluffWindowTimer)
       ? room.players[room.currentPlayerIndex]?.id
       : null,
     playedThisTrick : room.currentTrick.map(p => p.playerId),
     currentTrick    : room.currentTrick,
     players         : room.players.map(p => ({
-      id        : p.id,
-      name      : p.name,
-      score     : p.score,
-      bet       : p.bet,
-      tricksWon : p.tricksWon,
-      bonuses   : p.bonuses,
-      handSize  : p.hand.length,
+      id          : p.id,
+      name        : p.name,
+      score       : p.score,
+      bluffScore  : p.bluffScore,
+      bet         : p.bet,
+      tricksWon   : p.tricksWon,
+      bonuses     : p.bonuses,
+      handSize    : p.hand.length,
+      restartVote : room.restartVotes ? room.restartVotes[p.id] : undefined,
     })),
   };
 }
@@ -210,7 +224,9 @@ function publicRoom(room) {
 
 function startRound(room) {
   const n = room.players.length;
-  room.maxRounds = Math.min(10, Math.floor(36 / n));
+  const absoluteMax = Math.floor(36 / n);
+  // Respecte le choix du chef, plafonné par le max possible avec les joueurs actuels
+  room.maxRounds = Math.min(room.chosenMaxRounds ?? absoluteMax, absoluteMax);
 
   // Reset joueurs
   room.players.forEach(p => {
@@ -255,17 +271,27 @@ function doResolveTrick(room) {
   const newBonuses = [];
 
   if (winnerPlay?.roll?.active) {
-    if (winnerPlay.dieType === DieType.MINOTAURE &&
-        plays.some(p => p.dieType === DieType.GRIFFON && p.roll.active)) {
-      const b = { type: 'MINO_VS_GRIFFON', points: 20 };
-      winner.bonuses.push(b);
-      newBonuses.push(b);
+    // 🐂 Minotaure : +30 pts par Griffon actif vaincu
+    if (winnerPlay.dieType === DieType.MINOTAURE) {
+      const griffonsActifs = plays.filter(p =>
+        p.dieType === DieType.GRIFFON && p.roll.active && p.playerId !== winnerId
+      );
+      if (griffonsActifs.length > 0) {
+        const b = { type: 'MINO_VS_GRIFFON', points: griffonsActifs.length * 30, count: griffonsActifs.length };
+        winner.bonuses.push(b);
+        newBonuses.push(b);
+      }
     }
-    if (winnerPlay.dieType === DieType.SIRENE &&
-        plays.some(p => p.dieType === DieType.MINOTAURE && p.roll.active)) {
-      const b = { type: 'SIRENE_VS_MINO', points: 30 };
-      winner.bonuses.push(b);
-      newBonuses.push(b);
+    // 🧜 Sirène bat Minotaure : +50 pts
+    if (winnerPlay.dieType === DieType.SIRENE) {
+      const minotaureActif = plays.some(p =>
+        p.dieType === DieType.MINOTAURE && p.roll.active && p.playerId !== winnerId
+      );
+      if (minotaureActif) {
+        const b = { type: 'SIRENE_VS_MINO', points: 50 };
+        winner.bonuses.push(b);
+        newBonuses.push(b);
+      }
     }
   }
 
@@ -284,9 +310,12 @@ function doResolveTrick(room) {
 
 function doEndRound(room) {
   const roundScores = {};
+  const bluffScores = {}; // capturés avant reset pour affichage côté client
   room.players.forEach(p => {
     const rs  = calcScore(p, room.roundNumber);
-    p.score  += rs;
+    bluffScores[p.id] = p.bluffScore ?? 0;
+    p.score  += rs + (p.bluffScore ?? 0);
+    p.bluffScore = 0;
     roundScores[p.id] = rs;
   });
 
@@ -296,6 +325,7 @@ function doEndRound(room) {
   io.to(room.code).emit('round-ended', {
     room : publicRoom(room),
     roundScores,
+    bluffScores,
     isLastRound,
   });
 }
@@ -306,9 +336,12 @@ function doEndRound(room) {
 
 io.on('connection', socket => {
   // ── Créer une salle ──────────────────────────
-  socket.on('create-room', ({ name }) => {
+  socket.on('create-room', ({ name, maxRounds }) => {
     let code;
     do { code = genCode(); } while (rooms.has(code));
+
+    const absoluteMax = Math.floor(36 / 1); // 1 joueur au départ → max théorique 36
+    const chosen = (maxRounds && maxRounds >= 1) ? maxRounds : 10;
 
     const room = {
       code,
@@ -316,7 +349,8 @@ io.on('connection', socket => {
       players             : [makePlayer(socket.id, name)],
       phase               : 'waiting',
       roundNumber         : 1,
-      maxRounds           : 10,
+      maxRounds           : chosen,
+      chosenMaxRounds     : chosen,
       currentTrick        : [],
       currentStarterIndex : 0,
       currentPlayerIndex  : 0,
@@ -331,14 +365,34 @@ io.on('connection', socket => {
   // ── Rejoindre une salle ──────────────────────
   socket.on('join-room', ({ code, name }) => {
     const room = rooms.get(code?.toUpperCase());
-    if (!room)                       return socket.emit('error', 'Salle introuvable.');
-    if (room.phase !== 'waiting')    return socket.emit('error', 'Partie déjà commencée.');
+    if (!room) return socket.emit('error', 'Salle introuvable.');
+    const joinablePhases = ['waiting', 'game-over', 'restart-vote'];
+    if (!joinablePhases.includes(room.phase)) return socket.emit('error', 'Partie déjà commencée.');
     if (room.players.length >= 6)    return socket.emit('error', 'Salle pleine (6 max).');
     if (room.players.some(p => p.id === socket.id)) return;
 
     room.players.push(makePlayer(socket.id, name));
+
+    // Si le nombre de manches choisies dépasse le nouveau max possible, on le réduit
+    const newMax = Math.floor(36 / room.players.length);
+    if ((room.chosenMaxRounds ?? room.maxRounds) > newMax) {
+      room.chosenMaxRounds = newMax;
+      room.maxRounds       = newMax;
+    }
+
     socket.join(room.code);
     socket.emit('room-joined', { code: room.code, room: publicRoom(room) });
+    io.to(room.code).emit('room-updated', publicRoom(room));
+  });
+
+  // ── Modifier le nombre de manches (chef, phase waiting) ─
+  socket.on('set-max-rounds', ({ code, maxRounds }) => {
+    const room = rooms.get(code);
+    if (!room || room.hostId !== socket.id || room.phase !== 'waiting') return;
+    const absoluteMax = Math.floor(36 / room.players.length);
+    const validated   = Math.max(1, Math.min(absoluteMax, maxRounds));
+    room.chosenMaxRounds = validated;
+    room.maxRounds       = validated;
     io.to(room.code).emit('room-updated', publicRoom(room));
   });
 
@@ -347,6 +401,69 @@ io.on('connection', socket => {
     const room = rooms.get(code);
     if (!room || room.hostId !== socket.id || room.phase !== 'waiting') return;
     if (room.players.length < 2) return socket.emit('error', 'Minimum 2 joueurs.');
+    startRound(room);
+  });
+
+  // ── Proposer une nouvelle partie (chef) ──────
+  socket.on('request-restart', ({ code }) => {
+    const room = rooms.get(code);
+    if (!room || room.hostId !== socket.id || room.phase !== 'game-over') return;
+
+    room.phase        = 'restart-vote';
+    room.restartVotes = {};
+    // Le chef vote oui automatiquement
+    room.restartVotes[socket.id] = true;
+
+    io.to(room.code).emit('room-updated', publicRoom(room));
+  });
+
+  // ── Voter pour la nouvelle partie ────────────
+  socket.on('vote-restart', ({ code, vote }) => {
+    const room = rooms.get(code);
+    if (!room || room.phase !== 'restart-vote') return;
+    const player = room.players.find(p => p.id === socket.id);
+    if (!player) return;
+
+    room.restartVotes[socket.id] = vote; // true = oui, false = non
+
+    io.to(room.code).emit('room-updated', publicRoom(room));
+  });
+
+  // ── Lancer la nouvelle partie (chef) ─────────
+  socket.on('launch-restart', ({ code }) => {
+    const room = rooms.get(code);
+    if (!room || room.hostId !== socket.id || room.phase !== 'restart-vote') return;
+    if (room.players.length < 2) return socket.emit('error', 'Minimum 2 joueurs.');
+
+    // Notifier et éjecter du channel socket les joueurs qui ont voté non
+    room.players
+      .filter(p => room.restartVotes[p.id] === false)
+      .forEach(p => {
+        io.to(p.id).emit('kicked-to-lobby', { reason: 'Vous avez refusé la nouvelle partie.' });
+        // Forcer la sortie du channel socket.io — ils ne recevront plus rien
+        const kickedSocket = io.sockets.sockets.get(p.id);
+        if (kickedSocket) kickedSocket.leave(code);
+      });
+
+    // Retirer les joueurs qui ont voté non
+    room.players = room.players.filter(p => room.restartVotes[p.id] !== false);
+
+    if (room.players.length < 2) {
+      return socket.emit('error', 'Pas assez de joueurs après les refus.');
+    }
+
+    // S'assurer que le chef est toujours dans la partie
+    if (!room.players.find(p => p.id === room.hostId)) {
+      room.hostId = room.players[0].id;
+    }
+
+    // Reset complet des scores pour une nouvelle partie
+    room.players.forEach(p => { p.score = 0; });
+    room.roundNumber        = 1;
+    room.restartVotes       = {};
+    room.currentStarterIndex = 0;
+    room.currentPlayerIndex  = 0;
+
     startRound(room);
   });
 
@@ -377,31 +494,175 @@ io.on('connection', socket => {
     if (currentPlayer?.id !== socket.id)           return;
     if (dieIndex < 0 || dieIndex >= currentPlayer.hand.length) return;
 
-    // ── Validation règle de couleur ─────────────
-    const validIndices = getValidIndices(currentPlayer.hand, room.currentTrick);
-    if (!validIndices.includes(dieIndex)) {
-      return socket.emit('error', 'Vous devez suivre la couleur ou jouer un atout !');
+    // ── Validation règle de couleur (désactivée en mode bluff, sauf si accusé contraint) ──
+    const mustFollow = room.accusedMustFollow;
+    if (mustFollow && mustFollow.playerId === socket.id) {
+      // L'accusé doit jouer la couleur d'entame ou un atout — toujours, même en mode bluff
+      const validIndices = getValidIndices(currentPlayer.hand, room.currentTrick);
+      if (!validIndices.includes(dieIndex)) {
+        return socket.emit('error', 'Vous devez jouer la couleur ou un atout après un bluff confirmé !');
+      }
+      room.accusedMustFollow = null; // contrainte levée après ce coup
+    } else if (!room.bluffMode) {
+      const validIndices = getValidIndices(currentPlayer.hand, room.currentTrick);
+      if (!validIndices.includes(dieIndex)) {
+        return socket.emit('error', 'Vous devez suivre la couleur ou jouer un atout !');
+      }
     }
 
     const dieType = currentPlayer.hand.splice(dieIndex, 1)[0];
     const roll    = rollDie(dieType);
 
     room.currentTrick.push({
-      playerId   : socket.id,
-      playerName : currentPlayer.name,
+      playerId      : socket.id,
+      playerName    : currentPlayer.name,
       dieType,
       roll,
-      order      : room.currentTrick.length,
+      order         : room.currentTrick.length,
+      remainingHand : [...currentPlayer.hand], // main restante après avoir joué (pour vérif bluff)
+      hadOnlyOneDie : currentPlayer.hand.length === 0 && room.currentTrick.length === room.currentTrick.length, // sera vrai si la main était d'1 dé
     });
 
-    const allPlayed = room.currentTrick.length === room.players.length;
+    // Recalculer hadOnlyOneDie correctement (avant splice, main avait length+1)
+    const justPushed = room.currentTrick[room.currentTrick.length - 1];
+    justPushed.hadOnlyOneDie = (justPushed.remainingHand.length === 0
+      && room.currentTrick.filter(p => p.playerId === socket.id).length === 1);
+
+    const playersPlayed = new Set(room.currentTrick.map(p => p.playerId));
+    const allPlayed = playersPlayed.size === room.players.length;
 
     if (allPlayed) {
-      doResolveTrick(room);
+      // FIX 4 : en mode bluff, délai de 4s avant résolution pour permettre l'accusation
+      if (room.bluffMode) {
+        room.phase = 'playing'; // reste en playing pendant le délai
+        room.bluffCalledThisTrick = false;
+        room.bluffWindowTimer = true;
+        io.to(room.code).emit('room-updated', publicRoom(room));
+        setTimeout(() => {
+          // Vérifier que personne n'a appelé bluff pendant le délai
+          if (room.bluffWindowTimer && room.phase === 'playing') {
+            room.bluffWindowTimer = false;
+            doResolveTrick(room);
+          }
+        }, 4000);
+      } else {
+        doResolveTrick(room);
+      }
     } else {
+      room.bluffCalledThisTrick = false; // reset pour le prochain joueur
       room.currentPlayerIndex =
         (room.currentPlayerIndex + 1) % room.players.length;
       io.to(room.code).emit('room-updated', publicRoom(room));
+    }
+  });
+
+  // ── Activer / désactiver le mode bluff (chef, attente) ──
+  socket.on('set-bluff-mode', ({ code, enabled }) => {
+    const room = rooms.get(code);
+    if (!room || room.hostId !== socket.id || room.phase !== 'waiting') return;
+    room.bluffMode = !!enabled;
+    io.to(room.code).emit('room-updated', publicRoom(room));
+  });
+
+  // ── Appeler un bluff ─────────────────────────────────────
+  socket.on('call-bluff', ({ code }) => {
+    const room = rooms.get(code);
+    if (!room || room.phase !== 'playing' || !room.bluffMode) return;
+    if (room.currentTrick.length === 0) return;
+
+    // FIX 2 : un seul bluff par coup
+    if (room.bluffCalledThisTrick) return;
+
+    const trick    = room.currentTrick;
+    const leadType = trick[0].dieType;
+    if (!NORMAL_TYPES.has(leadType))
+      return socket.emit('error', 'Bluff impossible : l\'entame est un atout.');
+
+    const lastPlay = trick[trick.length - 1];
+    const isSuspect = lastPlay.dieType !== leadType && !TRUMP_TYPES.has(lastPlay.dieType);
+    if (!isSuspect)
+      return socket.emit('error', 'Pas de bluff possible sur ce coup.');
+    if (lastPlay.playerId === socket.id)
+      return socket.emit('error', 'Vous ne pouvez pas vous accuser vous-même.');
+
+    // FIX 5 : bluff impossible si le joueur n'avait qu'un seul dé
+    if (lastPlay.hadOnlyOneDie)
+      return socket.emit('error', 'Bluff impossible : il n\'avait qu\'un seul dé.');
+
+    const caller  = room.players.find(p => p.id === socket.id);
+    const accused = room.players.find(p => p.id === lastPlay.playerId);
+    if (!caller || !accused) return;
+
+    // FIX 2 : marquer le bluff comme appelé pour ce coup
+    room.bluffCalledThisTrick = true;
+    // Stopper le timer de résolution automatique
+    room.bluffWindowTimer = false;
+
+    const isBluff = lastPlay.remainingHand?.includes(leadType) ?? false;
+
+    if (isBluff) {
+      accused.bluffScore -= 20;
+      caller.bluffScore  += 20;
+      accused.hand.push(lastPlay.dieType);
+      room.currentTrick = trick.filter(p => p.playerId !== accused.id);
+    } else {
+      caller.bluffScore -= 10;
+    }
+
+    room.phase      = 'bluff-check';
+    room.bluffState = {
+      callerId    : caller.id,
+      callerName  : caller.name,
+      accusedId   : accused.id,
+      accusedName : accused.name,
+      accusedDie  : lastPlay.dieType,
+      leadType,
+      isBluff,
+      callerDelta : isBluff ? +20 : -10,
+      accusedDelta: isBluff ? -20 : 0,
+    };
+
+    io.to(room.code).emit('bluff-resolved', {
+      room       : publicRoom(room),
+      bluffState : room.bluffState,
+    });
+  });
+
+  // ── Continuer après résolution du bluff (chef) ───────────
+  socket.on('continue-after-bluff', ({ code }) => {
+    const room = rooms.get(code);
+    if (!room || room.phase !== 'bluff-check' || room.hostId !== socket.id) return;
+
+    const { isBluff, accusedId, leadType: bluffLeadType } = room.bluffState;
+    room.bluffState          = null;
+    room.bluffWindowTimer    = false;
+    room.bluffCalledThisTrick = true;
+
+    if (isBluff) {
+      const idx = room.players.findIndex(p => p.id === accusedId);
+      room.currentPlayerIndex = idx !== -1 ? idx : room.currentPlayerIndex;
+      room.accusedMustFollow = {
+        playerId : accusedId,
+        leadType : bluffLeadType ?? room.currentTrick[0]?.dieType,
+      };
+      room.phase = 'playing';
+      io.to(room.code).emit('room-updated', publicRoom(room));
+      // Envoyer la main mise à jour à l'accusé (son dé lui a été rendu)
+      const accusedPlayer = room.players.find(p => p.id === accusedId);
+      if (accusedPlayer) {
+        io.to(accusedId).emit('hand-updated', { hand: [...accusedPlayer.hand] });
+      }
+    } else {
+      // Pas un bluff : le coup de l'accusé est toujours dans le pli
+      // currentPlayerIndex est DÉJÀ sur le bon joueur (play-die l'a avancé avant l'accusation)
+      const allPlayedNotBluff = new Set(room.currentTrick.map(p => p.playerId)).size >= room.players.length;
+      if (allPlayedNotBluff) {
+        doResolveTrick(room);
+      } else {
+        // Ne PAS avancer currentPlayerIndex — il pointe déjà sur le prochain joueur
+        room.phase = 'playing';
+        io.to(room.code).emit('room-updated', publicRoom(room));
+      }
     }
   });
 
@@ -416,8 +677,11 @@ io.on('connection', socket => {
     if (roundOver) {
       doEndRound(room);
     } else {
-      room.phase              = 'playing';
-      room.currentPlayerIndex = room.currentStarterIndex;
+      room.phase                = 'playing';
+      room.currentPlayerIndex   = room.currentStarterIndex;
+      room.bluffCalledThisTrick = false;
+      room.bluffWindowTimer     = false;
+      room.accusedMustFollow    = null;
       io.to(room.code).emit('room-updated', publicRoom(room));
     }
   });
@@ -439,19 +703,70 @@ io.on('connection', socket => {
 
       const [left] = room.players.splice(idx, 1);
 
+      // Salle vide → on supprime
       if (room.players.length === 0) {
         rooms.delete(code);
         return;
       }
 
+      // Transfert du rôle de chef si nécessaire
       if (room.hostId === socket.id) {
         room.hostId = room.players[0].id;
       }
 
-      io.to(code).emit('player-left', {
-        name : left.name,
-        room : publicRoom(room),
-      });
+      // Ajuster les indices qui pointent après le joueur retiré
+      if (room.currentStarterIndex >= room.players.length) {
+        room.currentStarterIndex = 0;
+      }
+      if (room.currentPlayerIndex >= room.players.length) {
+        room.currentPlayerIndex = room.currentPlayerIndex % room.players.length;
+      }
+
+      io.to(code).emit('player-left', { name: left.name, room: publicRoom(room) });
+
+      // ── Récupération selon la phase en cours ───────────────
+      const phase = room.phase;
+
+      // Phase paris : si le joueur n'avait pas parié, on le retire et on vérifie si tout le monde a misé
+      if (phase === 'betting') {
+        if (room.players.every(p => p.bet !== null)) {
+          room.phase              = 'playing';
+          room.currentPlayerIndex = room.currentStarterIndex;
+          io.to(code).emit('room-updated', publicRoom(room));
+        }
+      }
+
+      // Phase jeu : si c'était son tour OU si le pli est maintenant complet sans lui
+      if (phase === 'playing') {
+        // Retirer son éventuel coup dans le pli en cours (sécurité)
+        room.currentTrick = room.currentTrick.filter(p => p.playerId !== socket.id);
+
+        const allPlayed = new Set(room.currentTrick.map(p => p.playerId)).size === room.players.length;
+        if (allPlayed) {
+          doResolveTrick(room);
+        } else {
+          // Recalculer qui doit jouer (en cas de désynchro d'index)
+          if (room.currentPlayerIndex >= room.players.length) {
+            room.currentPlayerIndex = 0;
+          }
+          io.to(code).emit('room-updated', publicRoom(room));
+        }
+      }
+
+      // Phase résultat de pli : rien à faire, le chef avance manuellement
+      // Phase scores de manche : rien à faire
+
+      // Si plus qu'un joueur → fin de partie forcée
+      if (room.players.length < 2 &&
+          ['betting', 'playing', 'trick-result', 'round-score'].includes(phase)) {
+        room.phase = 'game-over';
+        io.to(code).emit('round-ended', {
+          room        : publicRoom(room),
+          roundScores : {},
+          isLastRound : true,
+        });
+      }
+
       break;
     }
   });
