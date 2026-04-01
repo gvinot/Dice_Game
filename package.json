@@ -1,7 +1,7 @@
 {
   "name": "atouts-mythiques",
-  "version": "1.0.0",
-  "description": "Jeu de société multijoueur en temps réel",
+  "version": "3.0.0",
+  "description": "Jeu de société multijoueur en temps réel — V3 architecture modulaire",
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
