@@ -5,10 +5,14 @@ const { DieType, TRUMP_TYPES }      = require('../engine/DieType');
 const { resolveTrick }              = require('../engine/TrickResolver');
 const { calcScore }                 = require('../engine/ScoreCalculator');
 const { publicRoom, makePlayer }    = require('./RoomFactory');
+const { touchRoom }                 = require('./RoomCleaner');
+const { clearTurnTimer }            = require('./TurnTimer');
 
 // ── Démarrage d'une manche ────────────────────────────────
 
 function startRound(room, io) {
+  touchRoom(room);
+  clearTurnTimer(room);
   const n           = room.players.length;
   const absoluteMax = Math.floor(36 / n);
   room.maxRounds    = Math.min(room.chosenMaxRounds ?? absoluteMax, absoluteMax);
@@ -51,6 +55,8 @@ function startRound(room, io) {
 // ── Résolution d'un pli ───────────────────────────────────
 
 function doResolveTrick(room, io) {
+  touchRoom(room);
+  clearTurnTimer(room);
   const plays    = room.currentTrick;
   const winnerId = resolveTrick(plays);
   const winner   = room.players.find(p => p.id === winnerId);
@@ -105,6 +111,8 @@ function doResolveTrick(room, io) {
 // ── Fin de manche ─────────────────────────────────────────
 
 function doEndRound(room, io) {
+  touchRoom(room);
+  clearTurnTimer(room);
   const roundScores = {};
   const bluffScores = {};
 

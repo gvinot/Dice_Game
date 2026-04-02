@@ -5,6 +5,8 @@ const { rollDie }                            = require('../engine/Die');
 const { getValidIndices }                    = require('../engine/TrickResolver');
 const { publicRoom }                         = require('../room/RoomFactory');
 const { startRound, doResolveTrick, doEndRound } = require('../room/GameFlow');
+const { touchRoom }                          = require('../room/RoomCleaner');
+const { clearTurnTimer }                     = require('../room/TurnTimer');
 
 function registerGameHandlers(socket, io, rooms) {
 
@@ -17,6 +19,7 @@ function registerGameHandlers(socket, io, rooms) {
     if (bet < 0 || bet > room.roundNumber) return;
 
     player.bet = bet;
+    touchRoom(room);
 
     if (room.players.every(p => p.bet !== null)) {
       room.phase              = 'playing';
@@ -52,6 +55,7 @@ function registerGameHandlers(socket, io, rooms) {
       }
     }
 
+    touchRoom(room);
     const dieType = currentPlayer.hand.splice(dieIndex, 1)[0];
     const roll    = rollDie(dieType);
 

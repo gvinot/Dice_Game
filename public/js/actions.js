@@ -15,6 +15,7 @@ function createRoom() {
   const name = document.getElementById('input-name').value.trim();
   if (!name) return showToast('Entrez votre prénom', 'error');
   S.myName = name;
+  sessionStorage.removeItem('am_reconnect_token'); // nouvelle salle = nouveau token
   socket.emit('create-room', { name, maxRounds: 10 });
 }
 
@@ -24,6 +25,7 @@ function joinRoom() {
   if (!name)             return showToast('Entrez votre prénom', 'error');
   if (code.length !== 4) return showToast('Le code fait 4 caractères', 'error');
   S.myName = name;
+  sessionStorage.removeItem('am_reconnect_token');
   socket.emit('join-room', { code, name });
 }
 

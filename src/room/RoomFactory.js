@@ -47,6 +47,11 @@ function makeRoom(code, hostId, hostName, maxRounds = 10) {
     bluffWindowTimer    : false,
     accusedMustFollow   : null,
     restartVotes        : {},
+    // Robustesse
+    lastActivity        : Date.now(),
+    disconnected        : {},   // { [oldSocketId]: { token, timer, expiresAt } }
+    turnTimer           : null,
+    turnDeadline        : null,
   };
 }
 
@@ -67,6 +72,7 @@ function publicRoom(room) {
     chosenMaxRounds      : room.chosenMaxRounds,
     absoluteMax          : Math.floor(36 / room.players.length),
     trickNumber          : room.trickNumber,
+    turnDeadline         : room.turnDeadline ?? null,
     currentPlayerId      : (room.phase === 'playing' && !room.bluffWindowTimer)
       ? room.players[room.currentPlayerIndex]?.id
       : null,
@@ -82,6 +88,7 @@ function publicRoom(room) {
       bonuses     : p.bonuses,
       handSize    : p.hand.length,
       restartVote : room.restartVotes?.[p.id],
+      connected   : p.connected !== false, // true par défaut
     })),
   };
 }
