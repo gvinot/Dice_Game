@@ -99,6 +99,9 @@ function doResolveTrick(room, io) {
   room.bluffWindowTimer    = false;
   room.accusedMustFollow   = null;
 
+  // Stocker le résultat pour pouvoir le renvoyer à un joueur qui se reconnecte
+  room.lastTrickData = { winnerId, winnerName: winner.name, plays: [...plays], newBonuses };
+
   io.to(room.code).emit('trick-resolved', {
     room       : publicRoom(room),
     winnerId,
@@ -126,6 +129,9 @@ function doEndRound(room, io) {
 
   const isLastRound = room.roundNumber >= room.maxRounds;
   room.phase        = isLastRound ? 'game-over' : 'round-score';
+
+  // Stocker pour renvoi à la reconnexion
+  room.lastRoundData = { roundScores, bluffScores, isLastRound };
 
   io.to(room.code).emit('round-ended', {
     room : publicRoom(room),

@@ -74,10 +74,22 @@ function finalizeDisconnect(code, room, socketId, rooms, io) {
 
   const phase = room.phase;
 
-  if (phase === 'betting' && room.players.every(p => p.bet !== null)) {
-    room.phase              = 'playing';
-    room.currentPlayerIndex = room.currentStarterIndex;
-    io.to(code).emit('room-updated', publicRoom(room));
+  if (phase === 'betting') {
+    // 1 joueur restant → fin de partie immédiate
+    if (room.players.length < 2) {
+      clearTurnTimer(room);
+      room.phase = 'game-over';
+      io.to(code).emit('round-ended', {
+        room: publicRoom(room), roundScores: {}, bluffScores: {}, isLastRound: true,
+      });
+      return;
+    }
+    // Tous ont misé → passer en jeu
+    if (room.players.every(p => p.bet !== null)) {
+      room.phase              = 'playing';
+      room.currentPlayerIndex = room.currentStarterIndex;
+      io.to(code).emit('room-updated', publicRoom(room));
+    }
     return;
   }
 

@@ -28,22 +28,48 @@ socket.on('room-joined', ({ code, room, reconnectToken }) => {
 });
 
 // ── Reconnexion ───────────────────────────────────────────
-socket.on('reconnect-ok', ({ code, room, hand, isHost }) => {
+socket.on('reconnect-ok', ({ code, room, hand, isHost, lastTrickData, lastRoundData, handForBetting }) => {
   S.roomCode = code;
   S.room     = room;
   S.isHost   = isHost;
   S.myHand   = hand;
   S.isMyTurn = room.currentPlayerId === S.myId;
-  showToast('\u2705 Reconnexion réussie !', 'success');
-  // Reprendre l'écran selon la phase en cours
+  showToast('✅ Reconnexion réussie !', 'success');
+
   switch (room.phase) {
-    case 'waiting':      renderWaiting(room);      break;
-    case 'betting':      renderBetting(room);       break;
-    case 'playing':      renderPlaying(room);       break;
-    case 'trick-result': /* le serveur re-émettra trick-resolved */ break;
-    case 'round-score':  /* le serveur re-émettra round-ended */    break;
-    case 'game-over':    renderGameOver(room);      break;
-    case 'restart-vote': renderRestartVote(room);   break;
+    case 'waiting':
+      renderWaiting(room);
+      break;
+    case 'betting':
+      // Restaurer la main si fournie par le serveur
+      if (handForBetting) S.myHand = handForBetting;
+      renderBetting(room);
+      break;
+    case 'playing':
+      renderPlaying(room);
+      break;
+    case 'trick-result':
+      // Restaurer l'écran de résultat du pli avec les vraies données
+      if (lastTrickData) {
+        renderTrickResult(room,
+          lastTrickData.plays,
+          lastTrickData.winnerId,
+          lastTrickData.winnerName,
+          lastTrickData.newBonuses
+        );
+      }
+      break;
+    case 'round-score':
+      if (lastRoundData) {
+        renderRoundScore(room, lastRoundData.roundScores, lastRoundData.bluffScores);
+      }
+      break;
+    case 'game-over':
+      renderGameOver(room);
+      break;
+    case 'restart-vote':
+      renderRestartVote(room);
+      break;
     default: break;
   }
 });
@@ -136,5 +162,11 @@ socket.on('kicked-to-lobby', ({ reason }) => {
   alert(reason);
   location.reload();
 });
+
+// Quitter proprement depuis game-over (bouton "Quitter")
+function quitToLobby() {
+  sessionStorage.removeItem('am_reconnect_token');
+  location.reload();
+}
 
 socket.on('error', msg => showToast(msg, 'error'));

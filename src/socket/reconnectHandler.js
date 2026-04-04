@@ -1,7 +1,7 @@
 'use strict';
 
-const { publicRoom }              = require('../room/RoomFactory');
-const { tryReconnect }            = require('../room/ReconnectionManager');
+const { publicRoom }    = require('../room/RoomFactory');
+const { tryReconnect }  = require('../room/ReconnectionManager');
 
 function registerReconnectHandler(socket, io, rooms) {
 
@@ -9,31 +9,42 @@ function registerReconnectHandler(socket, io, rooms) {
     if (!token) return socket.emit('reconnect-failed', { reason: 'Token manquant.' });
 
     const result = tryReconnect(rooms, token, socket.id);
-
-    if (!result) {
-      return socket.emit('reconnect-failed', { reason: 'Session expirée ou introuvable.' });
-    }
+    if (!result) return socket.emit('reconnect-failed', { reason: 'Session expirée ou introuvable.' });
 
     const { player, room, code } = result;
-
-    // Rejoindre le channel socket.io
     socket.join(code);
 
-    // Notifier tout le monde
     io.to(code).emit('player-reconnected', {
       playerName : player.name,
       room       : publicRoom(room),
     });
 
-    // Renvoyer l'état complet au joueur reconnecté
-    socket.emit('reconnect-ok', {
+    // Données de base communes à tous les états
+    const base = {
       code,
-      room  : publicRoom(room),
-      hand  : [...player.hand],         // sa main actuelle
-      isHost: room.hostId === socket.id,
-    });
+      room   : publicRoom(room),
+      hand   : [...player.hand],
+      isHost : room.hostId === socket.id,
+    };
 
-    console.log(`[Reconnect] ${player.name} de retour [${code}]`);
+    // Données supplémentaires selon la phase — pour restaurer le bon écran
+    const phase = room.phase;
+    let extra   = {};
+
+    if (phase === 'trick-result' && room.lastTrickData) {
+      extra = { lastTrickData: room.lastTrickData };
+    }
+    if ((phase === 'round-score' || phase === 'game-over') && room.lastRoundData) {
+      extra = { lastRoundData: room.lastRoundData };
+    }
+    if (phase === 'betting') {
+      // Renvoyer les mains privées (le round-started ne sera pas réémis)
+      extra = { handForBetting: [...player.hand] };
+    }
+
+    socket.emit('reconnect-ok', { ...base, ...extra });
+
+    console.log(`[Reconnect] ${player.name} de retour [${code}] phase:${phase}`);
   });
 }
 
