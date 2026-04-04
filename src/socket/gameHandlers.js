@@ -45,13 +45,13 @@ function registerGameHandlers(socket, io, rooms) {
       // Accusé contraint : couleur ou atout obligatoire même en mode bluff
       const validIndices = getValidIndices(currentPlayer.hand, room.currentTrick);
       if (!validIndices.includes(dieIndex)) {
-        return socket.emit('error', 'Vous devez jouer la couleur ou un atout après un bluff confirmé !');
+        return socket.emit('game-error', 'Vous devez jouer la couleur ou un atout après un bluff confirmé !');
       }
       room.accusedMustFollow = null; // contrainte levée après ce coup
     } else if (!room.bluffMode) {
       const validIndices = getValidIndices(currentPlayer.hand, room.currentTrick);
       if (!validIndices.includes(dieIndex)) {
-        return socket.emit('error', 'Vous devez suivre la couleur ou jouer un atout !');
+        return socket.emit('game-error', 'Vous devez suivre la couleur ou jouer un atout !');
       }
     }
 

@@ -16,16 +16,16 @@ function registerBluffHandlers(socket, io, rooms) {
     const trick    = room.currentTrick;
     const leadType = trick[0].dieType;
     if (!NORMAL_TYPES.has(leadType))
-      return socket.emit('error', 'Bluff impossible : l\'entame est un atout.');
+      return socket.emit('game-error', 'Bluff impossible : l\'entame est un atout.');
 
     const lastPlay  = trick[trick.length - 1];
     const isSuspect = lastPlay.dieType !== leadType && !TRUMP_TYPES.has(lastPlay.dieType);
     if (!isSuspect)
-      return socket.emit('error', 'Pas de bluff possible sur ce coup.');
+      return socket.emit('game-error', 'Pas de bluff possible sur ce coup.');
     if (lastPlay.playerId === socket.id)
-      return socket.emit('error', 'Vous ne pouvez pas vous accuser vous-même.');
+      return socket.emit('game-error', 'Vous ne pouvez pas vous accuser vous-même.');
     if (lastPlay.hadOnlyOneDie)
-      return socket.emit('error', 'Bluff impossible : il n\'avait qu\'un seul dé.');
+      return socket.emit('game-error', 'Bluff impossible : il n\'avait qu\'un seul dé.');
 
     const caller  = room.players.find(p => p.id === socket.id);
     const accused = room.players.find(p => p.id === lastPlay.playerId);

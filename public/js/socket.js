@@ -169,4 +169,4 @@ function quitToLobby() {
   location.reload();
 }
 
-socket.on('error', msg => showToast(msg, 'error'));
+socket.on('game-error', msg => showToast(msg, 'error'));
