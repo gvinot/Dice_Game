@@ -66,12 +66,6 @@ function tryReconnect(rooms, token, newSocketId) {
 
       if (room.hostId === oldId) room.hostId = newSocketId;
 
-      // Mettre à jour currentPlayerIndex si c'était son tour
-      const idx = room.players.findIndex(p => p.id === newSocketId);
-      if (room.currentPlayerIndex === room.players.findIndex((_, i) =>
-          room.players[i].id === oldId)) {
-        // déjà mis à jour via player.id
-      }
 
       return { player, room, code };
     }

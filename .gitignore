@@ -1,0 +1,21 @@
+# Dépendances
+node_modules/
+
+# Variables d'environnement (ne jamais committer)
+.env
+.env.local
+.env.production
+
+# Certificats SSL (ne jamais committer)
+*.pem
+*.key
+*.cert
+*.crt
+
+# Logs
+*.log
+npm-debug.log*
+
+# OS
+.DS_Store
+Thumbs.db

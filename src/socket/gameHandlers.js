@@ -1,12 +1,10 @@
 'use strict';
 
-const { DieType, TRUMP_TYPES, NORMAL_TYPES } = require('../engine/DieType');
 const { rollDie }                            = require('../engine/Die');
 const { getValidIndices }                    = require('../engine/TrickResolver');
 const { publicRoom }                         = require('../room/RoomFactory');
 const { startRound, doResolveTrick, doEndRound } = require('../room/GameFlow');
 const { touchRoom }                          = require('../room/RoomCleaner');
-const { clearTurnTimer }                     = require('../room/TurnTimer');
 
 function registerGameHandlers(socket, io, rooms) {
 

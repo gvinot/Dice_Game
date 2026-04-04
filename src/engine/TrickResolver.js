@@ -75,7 +75,7 @@ function resolveTrick(plays) {
   }
 
   // 4. Dés normaux actifs → valeur la plus haute
-  const normals = plays.filter(p => p.roll.active && p.roll.value != null);
+  const normals = plays.filter(p => p.roll.active && p.roll.value !== null);
   if (normals.length > 0) {
     const max = Math.max(...normals.map(p => p.roll.value));
     return lastPlayed(normals.filter(p => p.roll.value === max)).playerId;

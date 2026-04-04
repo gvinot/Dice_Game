@@ -1,10 +1,9 @@
 'use strict';
-
-const { buildDeck, rollDie }        = require('../engine/Die');
-const { DieType, TRUMP_TYPES }      = require('../engine/DieType');
+const { buildDeck }                 = require('../engine/Die');
+const { DieType }                   = require('../engine/DieType');
+const { publicRoom }                = require('./RoomFactory');
 const { resolveTrick }              = require('../engine/TrickResolver');
 const { calcScore }                 = require('../engine/ScoreCalculator');
-const { publicRoom, makePlayer }    = require('./RoomFactory');
 const { touchRoom }                 = require('./RoomCleaner');
 const { clearTurnTimer }            = require('./TurnTimer');
 

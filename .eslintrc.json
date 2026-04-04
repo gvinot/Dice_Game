@@ -1,0 +1,39 @@
+{
+  "env": {
+    "node"   : true,
+    "es2022" : true,
+    "browser": true
+  },
+  "parserOptions": {
+    "ecmaVersion": 2022
+  },
+  "rules": {
+    // ── Erreurs critiques ─────────────────────────────────
+    "no-undef"            : "error",
+    "no-unused-vars"      : ["warn", { "argsIgnorePattern": "^_" }],
+    "no-console"          : "off",
+
+    // ── Qualité du code ───────────────────────────────────
+    "eqeqeq"              : ["error", "always"],
+    "no-var"              : "error",
+    "prefer-const"        : "warn",
+    "no-duplicate-case"   : "error",
+    "no-unreachable"      : "error",
+    "no-self-assign"      : "error",
+
+    // ── Sécurité basique ──────────────────────────────────
+    "no-eval"             : "error",
+    "no-implied-eval"     : "error",
+    "no-new-func"         : "error",
+
+    // ── Style (non-bloquant) ──────────────────────────────
+    "semi"                : ["warn", "always"],
+    "no-trailing-spaces"  : "warn",
+    "no-multiple-empty-lines": ["warn", { "max": 2 }]
+  },
+  "ignorePatterns": [
+    "node_modules/",
+    "public/js/",       // fichiers client : règles navigateur différentes
+    "public/css/"
+  ]
+}

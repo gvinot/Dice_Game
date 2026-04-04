@@ -1,6 +1,5 @@
 'use strict';
-
-const { DieType, TRUMP_TYPES, NORMAL_TYPES } = require('../engine/DieType');
+const { TRUMP_TYPES, NORMAL_TYPES }          = require('../engine/DieType');
 const { publicRoom }                         = require('../room/RoomFactory');
 const { doResolveTrick }                     = require('../room/GameFlow');
 
