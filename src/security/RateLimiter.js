@@ -49,7 +49,7 @@ function createRateLimiter(socket) {
 
     if (entry.count > cfg.max) {
       console.warn(`[RateLimit] ${socket.id} — ${eventName} (${entry.count}/${cfg.max})`);
-      socket.emit('error', 'Trop de requêtes. Attendez un instant.');
+      socket.emit('game-error', 'Trop de requêtes. Attendez un instant.');
       return false;
     }
 

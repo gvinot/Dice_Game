@@ -2,40 +2,41 @@ name: CI
 
 on:
   push:
-    branches: ['**']        # tous les pushs sur toutes les branches
+    branches: ['**']
   pull_request:
-    branches: [main]        # toutes les PR vers main
+    branches: [main]
 
 jobs:
-  lint-and-check:
-    name: Lint & vérification
+  lint-and-test:
+    name: Lint, Tests & vérification
     runs-on: ubuntu-latest
 
     steps:
-      # 1. Récupérer le code
       - name: Checkout
         uses: actions/checkout@v4
 
-      # 2. Installer Node.js
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: '20'
           cache: 'npm'
 
-      # 3. Installer les dépendances
       - name: Installer les dépendances
         run: npm ci
 
-      # 4. Vérifier la syntaxe de tous les fichiers JS serveur
       - name: Vérification syntaxe Node
         run: node --check server.js src/**/*.js
 
-      # 5. Linting ESLint
       - name: ESLint
         run: npm run lint
 
-      # 6. Vérifier que le serveur démarre sans erreur (timeout 5s)
+      - name: Tests unitaires et intégration
+        run: npm test
+
+      - name: Rapport de couverture
+        run: npm run test:coverage
+        continue-on-error: true   # ne bloque pas le CI si la couverture est basse
+
       - name: Smoke test démarrage serveur
         run: |
           timeout 5 node server.js &

@@ -30,7 +30,7 @@ function secureSocket(socket) {
       const result = validate(eventName, rawPayload);
       if (!result.ok) {
         console.warn(`[Validation] ${socket.id} — ${eventName}: ${result.reason}`);
-        socket.emit('error', result.reason);
+        socket.emit('game-error', result.reason);
         return;
       }
 
