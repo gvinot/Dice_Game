@@ -3,6 +3,7 @@
 const { logger }         = require('../monitoring/logger');
 const { inc }            = require('../monitoring/metrics');
 const { addBreadcrumb }  = require('../monitoring/sentry');
+const { captureGameEvent }  = require('../monitoring/sentry');
 
 const { buildDeck }                 = require('../engine/Die');
 const { DieType }                   = require('../engine/DieType');
@@ -11,7 +12,6 @@ const { resolveTrick }              = require('../engine/TrickResolver');
 const { calcScore }                 = require('../engine/ScoreCalculator');
 const { touchRoom }                 = require('./RoomCleaner');
 const { clearTurnTimer }            = require('./TurnTimer');
-
 // ── Démarrage d'une manche ────────────────────────────────
 
 function startRound(room, io) {
@@ -134,7 +134,17 @@ function doEndRound(room, io) {
   addBreadcrumb('game', 'Manche terminée', { code: room.code, round: room.roundNumber, isLast: room.roundNumber >= room.maxRounds });
   const isLastRound = room.roundNumber >= room.maxRounds;
   room.phase        = isLastRound ? 'game-over' : 'round-score';
-  if (isLastRound) { inc('gamesCompleted'); logger.info('Game', 'Partie terminée', { code: room.code }); }
+  if (isLastRound) {
+    inc('gamesCompleted');
+    logger.info('Game', 'Partie terminée', { code: room.code });
+    // Envoi vers Sentry Issues (level=info) — visible et filtrable
+    captureGameEvent('🎲 Partie terminée', {
+      code        : room.code,
+      players     : room.players.map(p => ({ name: p.name, score: p.score })),
+      rounds      : room.roundNumber,
+      bluffMode   : room.bluffMode,
+    });
+  }
 
   io.to(room.code).emit('round-ended', {
     room : publicRoom(room),

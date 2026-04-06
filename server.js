@@ -17,7 +17,7 @@ const { startRoomCleaner }          = require('./src/room/RoomCleaner');
 const { secureSocket }              = require('./src/security/SocketMiddleware');
 const { logger }                    = require('./src/monitoring/logger');
 const { inc, set, get: getMetrics } = require('./src/monitoring/metrics');
-const { initSentry, sentryErrorHandler, setupGlobalErrorHandlers, captureError, addBreadcrumb} = require('./src/monitoring/sentry');
+const { initSentry, sentryErrorHandler, setupGlobalErrorHandlers, captureError, addBreadcrumb, startMetricsReporting } = require('./src/monitoring/sentry');
 
 const app = express();
 
@@ -81,6 +81,7 @@ const io = new Server(server, {
 // ── Stockage en mémoire ───────────────────────────────────
 const rooms = new Map();
 startRoomCleaner(rooms, io);
+startMetricsReporting(); // Snapshots métriques → Sentry toutes les 30 min en prod
 
 // ── Handlers Socket.io ───────────────────────────────────
 io.on('connection', socket => {

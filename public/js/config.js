@@ -6,7 +6,7 @@ const DIE_CFG = {
   ROUGE     : { emoji: '🔴', label: 'Rouge',     values: '5·6·7' },
   JAUNE     : { emoji: '🟡', label: 'Jaune',     values: '3·4·5' },
   VIOLET    : { emoji: '🟣', label: 'Violet',    values: '1·2·3' },
-  GRIS      : { emoji: '⚫', label: 'Gris',      values: '0 ou 7' },
+  GRIS      : { emoji: '⚫', label: 'Gris',      values: '0·1·7' },
 };
 
 const TRUMP_TYPES  = new Set(['MINOTAURE', 'SIRENE', 'GRIFFON']);
