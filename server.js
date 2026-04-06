@@ -15,8 +15,15 @@ const { registerDisconnectHandler } = require('./src/socket/disconnectHandler');
 const { registerReconnectHandler }  = require('./src/socket/reconnectHandler');
 const { startRoomCleaner }          = require('./src/room/RoomCleaner');
 const { secureSocket }              = require('./src/security/SocketMiddleware');
+const { logger }                    = require('./src/monitoring/logger');
+const { inc, set, get: getMetrics } = require('./src/monitoring/metrics');
+const { initSentry, sentryErrorHandler, setupGlobalErrorHandlers, captureError } = require('./src/monitoring/sentry');
 
 const app = express();
+
+// ── Initialisation Sentry (avant les routes) ───────────────
+initSentry(app);
+setupGlobalErrorHandlers();
 
 // ── Sécurité HTTP ─────────────────────────────────────────
 app.use(helmet({
@@ -24,9 +31,6 @@ app.use(helmet({
     directives: {
       defaultSrc    : ["'self'"],
       scriptSrc     : ["'self'"],
-      // Les handlers onclick="..." dans le HTML nécessitent unsafe-hashes ou unsafe-inline.
-      // On désactive la directive stricte sur les attributs pour rester compatible
-      // avec le HTML actuel. À remplacer par des écouteurs JS dans feat/design.
       scriptSrcAttr : ["'unsafe-inline'"],
       styleSrc      : ["'self'", 'https://fonts.googleapis.com', "'unsafe-inline'"],
       fontSrc       : ["'self'", 'https://fonts.gstatic.com'],
@@ -37,19 +41,27 @@ app.use(helmet({
   crossOriginEmbedderPolicy: false,
 }));
 
-// Pas de header X-Powered-By
 app.disable('x-powered-by');
 
-// ── CORS : restreindre l'origine autorisée ────────────────
-const ALLOWED_ORIGIN = process.env.ALLOWED_ORIGIN ?? '*'; // en prod : mettre votre domaine
+// ── CORS ─────────────────────────────────────────────────
+const ALLOWED_ORIGIN = process.env.ALLOWED_ORIGIN ?? '*';
 
-// ── Fichiers statiques ────────────────────────────────────
+// ── Fichiers statiques ───────────────────────────────────
 app.use(express.static(path.join(__dirname, 'public')));
 
-// ── Serveur HTTP ou HTTPS ─────────────────────────────────
+// ── Routes de test et métriques ───────────────────────────
+app.get('/test-sentry', (req, res) => {
+  throw new Error('Test Sentry 🚀'); // Sentry captera cette erreur
+});
+
+app.get('/metrics', (req, res) => {
+  res.json(getMetrics());
+});
+
+// ── Serveur HTTP / HTTPS ─────────────────────────────────
 let server;
-const HTTPS_KEY  = process.env.HTTPS_KEY;   // chemin vers la clé privée
-const HTTPS_CERT = process.env.HTTPS_CERT;  // chemin vers le certificat
+const HTTPS_KEY  = process.env.HTTPS_KEY;
+const HTTPS_CERT = process.env.HTTPS_CERT;
 
 if (HTTPS_KEY && HTTPS_CERT && fs.existsSync(HTTPS_KEY) && fs.existsSync(HTTPS_CERT)) {
   server = https.createServer(
@@ -66,34 +78,50 @@ if (HTTPS_KEY && HTTPS_CERT && fs.existsSync(HTTPS_KEY) && fs.existsSync(HTTPS_C
 
 // ── Socket.io ─────────────────────────────────────────────
 const io = new Server(server, {
-  cors: {
-    origin : ALLOWED_ORIGIN,
-    methods : ['GET', 'POST'],
-  },
-  // Limites de taille pour éviter les payloads géants
-  maxHttpBufferSize: 1e4, // 10 Ko max par message
+  cors: { origin: ALLOWED_ORIGIN, methods: ['GET','POST'] },
+  maxHttpBufferSize: 1e4, // 10 Ko
 });
 
 // ── Stockage en mémoire ───────────────────────────────────
 const rooms = new Map();
-
 startRoomCleaner(rooms, io);
 
-// ── Handlers ─────────────────────────────────────────────
+// ── Handlers Socket.io ───────────────────────────────────
 io.on('connection', socket => {
-  // Sécuriser toutes les socket.on() de ce socket (rate limit + validation)
+  inc('connectionsTotal');
+  inc('connectionsActive');
+  logger.debug('Socket', 'Nouvelle connexion', { socketId: socket.id });
+
+  socket.on('disconnect', () => set('roomsActive', rooms.size));
+
   secureSocket(socket);
 
+  // Wrapper pour capturer les erreurs dans Socket.io
+  const safeHandler = (fn) => (...args) => {
+    try { fn(...args); }
+    catch (err) { captureError(err, { socketId: socket.id }); }
+  };
+
   registerReconnectHandler(socket, io, rooms);
-  registerLobbyHandlers(socket, io, rooms);
-  registerGameHandlers(socket, io, rooms);
-  registerBluffHandlers(socket, io, rooms);
-  registerDisconnectHandler(socket, io, rooms);
+  registerLobbyHandlers(socket, io, rooms, safeHandler);
+  registerGameHandlers(socket, io, rooms, safeHandler);
+  registerBluffHandlers(socket, io, rooms, safeHandler);
+  registerDisconnectHandler(socket, io, rooms, safeHandler);
 });
 
-// ── Démarrage ─────────────────────────────────────────────
+// ── Sentry errorHandler (DOIT être après toutes les routes) ─────────────────────────
+// Capture les erreurs Express et les envoie à Sentry
+sentryErrorHandler(app);
+
+// Fallback error handler pour répondre au client
+app.use((err, req, res, _next) => {
+  captureError(err, { url: req.url, method: req.method });
+  res.status(err.status ?? 500).json({ error: err.message ?? 'Erreur serveur' });
+});
+
+// ── Démarrage du serveur ─────────────────────────────────
 const PORT = process.env.PORT || 3000;
 server.listen(PORT, () => {
   const proto = (HTTPS_KEY && HTTPS_CERT) ? 'https' : 'http';
-  console.log(`🎲 Atouts Mythiques — ${proto}://localhost:${PORT}`);
+  logger.info('Server', `🎲 Atouts Mythiques démarré`, { url: `${proto}://localhost:${PORT}`, env: process.env.NODE_ENV ?? 'development' });
 });

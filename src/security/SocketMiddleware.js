@@ -1,5 +1,8 @@
 'use strict';
 
+const { logger } = require('../monitoring/logger');
+const { inc }    = require('../monitoring/metrics');
+
 const { createRateLimiter } = require('./RateLimiter');
 const { validate }          = require('./Validator');
 
@@ -29,7 +32,8 @@ function secureSocket(socket) {
       // 2. Validation et sanitisation
       const result = validate(eventName, rawPayload);
       if (!result.ok) {
-        console.warn(`[Validation] ${socket.id} — ${eventName}: ${result.reason}`);
+        logger.warn('Validation', `${eventName}: ${result.reason}`, { socketId: socket.id });
+      inc('validationErrors');
         socket.emit('game-error', result.reason);
         return;
       }

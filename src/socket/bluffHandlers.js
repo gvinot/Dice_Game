@@ -1,4 +1,7 @@
 'use strict';
+
+const { inc } = require('../monitoring/metrics');
+
 const { TRUMP_TYPES, NORMAL_TYPES }          = require('../engine/DieType');
 const { publicRoom }                         = require('../room/RoomFactory');
 const { doResolveTrick }                     = require('../room/GameFlow');
@@ -31,9 +34,11 @@ function registerBluffHandlers(socket, io, rooms) {
     if (!caller || !accused) return;
 
     room.bluffCalledThisTrick = true;
-    room.bluffWindowTimer     = false; // stopper le timer de résolution
+    room.bluffWindowTimer     = false;
+    inc('bluffsCalled');
 
     const isBluff = lastPlay.remainingHand?.includes(leadType) ?? false;
+    if (isBluff) inc('bluffsConfirmed');
 
     if (isBluff) {
       accused.bluffScore -= 20;

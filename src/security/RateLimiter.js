@@ -1,5 +1,8 @@
 'use strict';
 
+const { logger } = require('../monitoring/logger');
+const { inc }    = require('../monitoring/metrics');
+
 /**
  * Rate limiter par socket.
  * Chaque socket a un compteur glissant par type d'événement.
@@ -48,7 +51,8 @@ function createRateLimiter(socket) {
     entry.count++;
 
     if (entry.count > cfg.max) {
-      console.warn(`[RateLimit] ${socket.id} — ${eventName} (${entry.count}/${cfg.max})`);
+      logger.warn('RateLimit', `${eventName} dépassé`, { socketId: socket.id, count: entry.count, max: cfg.max });
+      inc('rateLimitHits');
       socket.emit('game-error', 'Trop de requêtes. Attendez un instant.');
       return false;
     }

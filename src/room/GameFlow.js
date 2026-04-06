@@ -1,4 +1,7 @@
 'use strict';
+const { logger } = require('../monitoring/logger');
+const { inc } = require('../monitoring/metrics');
+
 const { buildDeck }                 = require('../engine/Die');
 const { DieType }                   = require('../engine/DieType');
 const { publicRoom }                = require('./RoomFactory');
@@ -91,15 +94,13 @@ function doResolveTrick(room, io) {
     }
   }
 
+  inc('tricksResolved');
   room.phase               = 'trick-result';
   room.trickNumber++;
   room.currentStarterIndex = room.players.findIndex(p => p.id === winnerId);
   room.bluffCalledThisTrick = false;
   room.bluffWindowTimer    = false;
   room.accusedMustFollow   = null;
-
-  // Stocker le résultat pour pouvoir le renvoyer à un joueur qui se reconnecte
-  room.lastTrickData = { winnerId, winnerName: winner.name, plays: [...plays], newBonuses };
 
   io.to(room.code).emit('trick-resolved', {
     room       : publicRoom(room),
@@ -126,11 +127,10 @@ function doEndRound(room, io) {
     roundScores[p.id] = rs;
   });
 
+  inc('roundsPlayed');
   const isLastRound = room.roundNumber >= room.maxRounds;
   room.phase        = isLastRound ? 'game-over' : 'round-score';
-
-  // Stocker pour renvoi à la reconnexion
-  room.lastRoundData = { roundScores, bluffScores, isLastRound };
+  if (isLastRound) { inc('gamesCompleted'); logger.info('Game', 'Partie terminée', { code: room.code }); }
 
   io.to(room.code).emit('round-ended', {
     room : publicRoom(room),

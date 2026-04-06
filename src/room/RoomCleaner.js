@@ -1,5 +1,8 @@
 'use strict';
 
+const { logger } = require('../monitoring/logger');
+const { inc, set } = require('../monitoring/metrics');
+
 const CLEANUP_INTERVAL_MS = 5 * 60 * 1000;   // toutes les 5 minutes
 const ROOM_MAX_IDLE_MS    = 2 * 60 * 60 * 1000; // 2 heures d'inactivité → suppression
 const ROOM_WAITING_MAX_MS = 30 * 60 * 1000;  // 30 min en attente sans lancement → suppression
@@ -42,12 +45,14 @@ function startRoomCleaner(rooms, io) {
       }
     }
 
+    set('roomsActive', rooms.size);
     if (purged > 0) {
-      console.log(`[Cleaner] ${purged} salle(s) purgée(s) — ${rooms.size} active(s)`);
+      logger.info('Cleaner', `${purged} salle(s) purgée(s)`, { active: rooms.size });
+      inc('roomsPurged', purged);
     }
   }, CLEANUP_INTERVAL_MS);
 
-  console.log(`[Cleaner] Démarré — vérification toutes les ${CLEANUP_INTERVAL_MS / 60000} min`);
+  logger.info('Cleaner', 'Démarré', { intervalMin: CLEANUP_INTERVAL_MS / 60000 });
 }
 
 /**

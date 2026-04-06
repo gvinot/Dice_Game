@@ -1,5 +1,8 @@
 'use strict';
 
+const { logger } = require('../monitoring/logger');
+const { inc }    = require('../monitoring/metrics');
+
 const { publicRoom }    = require('../room/RoomFactory');
 const { tryReconnect }  = require('../room/ReconnectionManager');
 
@@ -44,7 +47,8 @@ function registerReconnectHandler(socket, io, rooms) {
 
     socket.emit('reconnect-ok', { ...base, ...extra });
 
-    console.log(`[Reconnect] ${player.name} de retour [${code}] phase:${phase}`);
+    logger.info('Reconnect', `${player.name} de retour`, { code, phase });
+    inc('reconnectionsSuccess');
   });
 }
 

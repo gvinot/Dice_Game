@@ -1,5 +1,8 @@
 'use strict';
 
+const { logger } = require('../monitoring/logger');
+const { inc }    = require('../monitoring/metrics');
+
 const { publicRoom }         = require('../room/RoomFactory');
 const { doResolveTrick }     = require('../room/GameFlow');
 const { startGracePeriod }   = require('../room/ReconnectionManager');
@@ -34,7 +37,8 @@ function registerDisconnectHandler(socket, io, rooms) {
           finalizeDisconnect(code, room, socket.id, rooms, io);
         });
 
-        console.log(`[Disconnect] Grace 30s → ${player.name} [${code}]`);
+        logger.info('Disconnect', `Grace 30s → ${player.name}`, { code });
+        inc('connectionsActive', -1);
       } else {
         finalizeDisconnect(code, room, socket.id, rooms, io);
       }
@@ -74,23 +78,22 @@ function finalizeDisconnect(code, room, socketId, rooms, io) {
 
   const phase = room.phase;
 
-  if (room.players.length < 2 &&
-      ['betting', 'playing', 'trick-result', 'round-score'].includes(phase)) {
-    clearTurnTimer(room);
-    room.phase = 'game-over';
-    io.to(code).emit('round-ended', {
-      room        : publicRoom(room),
-      roundScores : {},
-      bluffScores : {},
-      isLastRound : true,
-    });
-    return;
-  }
-
-  if (phase === 'betting' && room.players.every(p => p.bet !== null)) {
-    room.phase              = 'playing';
-    room.currentPlayerIndex = room.currentStarterIndex;
-    io.to(code).emit('room-updated', publicRoom(room));
+  if (phase === 'betting') {
+    // 1 joueur restant → fin de partie immédiate
+    if (room.players.length < 2) {
+      clearTurnTimer(room);
+      room.phase = 'game-over';
+      io.to(code).emit('round-ended', {
+        room: publicRoom(room), roundScores: {}, bluffScores: {}, isLastRound: true,
+      });
+      return;
+    }
+    // Tous ont misé → passer en jeu
+    if (room.players.every(p => p.bet !== null)) {
+      room.phase              = 'playing';
+      room.currentPlayerIndex = room.currentStarterIndex;
+      io.to(code).emit('room-updated', publicRoom(room));
+    }
     return;
   }
 
