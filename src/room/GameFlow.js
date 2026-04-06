@@ -1,6 +1,8 @@
 'use strict';
-const { logger } = require('../monitoring/logger');
-const { inc } = require('../monitoring/metrics');
+
+const { logger }         = require('../monitoring/logger');
+const { inc }            = require('../monitoring/metrics');
+const { addBreadcrumb }  = require('../monitoring/sentry');
 
 const { buildDeck }                 = require('../engine/Die');
 const { DieType }                   = require('../engine/DieType');
@@ -95,6 +97,7 @@ function doResolveTrick(room, io) {
   }
 
   inc('tricksResolved');
+  addBreadcrumb('game', 'Pli résolu', { code: room.code, winnerId, trickNumber: room.trickNumber });
   room.phase               = 'trick-result';
   room.trickNumber++;
   room.currentStarterIndex = room.players.findIndex(p => p.id === winnerId);
@@ -128,6 +131,7 @@ function doEndRound(room, io) {
   });
 
   inc('roundsPlayed');
+  addBreadcrumb('game', 'Manche terminée', { code: room.code, round: room.roundNumber, isLast: room.roundNumber >= room.maxRounds });
   const isLastRound = room.roundNumber >= room.maxRounds;
   room.phase        = isLastRound ? 'game-over' : 'round-score';
   if (isLastRound) { inc('gamesCompleted'); logger.info('Game', 'Partie terminée', { code: room.code }); }

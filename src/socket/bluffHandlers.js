@@ -1,8 +1,9 @@
 'use strict';
 
-const { inc } = require('../monitoring/metrics');
+const { inc }            = require('../monitoring/metrics');
+const { addBreadcrumb }  = require('../monitoring/sentry');
 
-const { TRUMP_TYPES, NORMAL_TYPES }          = require('../engine/DieType');
+const { TRUMP_TYPES, NORMAL_TYPES } = require('../engine/DieType');
 const { publicRoom }                         = require('../room/RoomFactory');
 const { doResolveTrick }                     = require('../room/GameFlow');
 
@@ -36,9 +37,11 @@ function registerBluffHandlers(socket, io, rooms) {
     room.bluffCalledThisTrick = true;
     room.bluffWindowTimer     = false;
     inc('bluffsCalled');
+    addBreadcrumb('game', `Bluff appelé par ${caller.name} contre ${accused.name}`, { code, leadType, accusedDie: lastPlay.dieType }, 'warning');
 
     const isBluff = lastPlay.remainingHand?.includes(leadType) ?? false;
-    if (isBluff) inc('bluffsConfirmed');
+    if (isBluff) { inc('bluffsConfirmed'); addBreadcrumb('game', `Bluff confirmé — ${accused.name} bluffait`, { code, leadType }, 'error'); }
+    else { addBreadcrumb('game', `Faux bluff — ${accused.name} n'avait pas la couleur`, { code }, 'info'); }
 
     if (isBluff) {
       accused.bluffScore -= 20;

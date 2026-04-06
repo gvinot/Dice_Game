@@ -17,7 +17,7 @@ const { startRoomCleaner }          = require('./src/room/RoomCleaner');
 const { secureSocket }              = require('./src/security/SocketMiddleware');
 const { logger }                    = require('./src/monitoring/logger');
 const { inc, set, get: getMetrics } = require('./src/monitoring/metrics');
-const { initSentry, sentryErrorHandler, setupGlobalErrorHandlers, captureError } = require('./src/monitoring/sentry');
+const { initSentry, sentryErrorHandler, setupGlobalErrorHandlers, captureError, addBreadcrumb} = require('./src/monitoring/sentry');
 
 const app = express();
 
@@ -50,10 +50,6 @@ const ALLOWED_ORIGIN = process.env.ALLOWED_ORIGIN ?? '*';
 app.use(express.static(path.join(__dirname, 'public')));
 
 // ── Routes de test et métriques ───────────────────────────
-app.get('/test-sentry', (req, res) => {
-  throw new Error('Test Sentry 🚀'); // Sentry captera cette erreur
-});
-
 app.get('/metrics', (req, res) => {
   res.json(getMetrics());
 });
@@ -97,23 +93,26 @@ io.on('connection', socket => {
   secureSocket(socket);
 
   // Wrapper pour capturer les erreurs dans Socket.io
-  const safeHandler = (fn) => (...args) => {
-    try { fn(...args); }
-    catch (err) { captureError(err, { socketId: socket.id }); }
+  // safeHandler : enveloppe chaque handler socket pour capturer les erreurs
+  // et ajouter automatiquement le contexte socketId + event
+  const safeHandler = (eventName, fn) => (...args) => {
+    try {
+      fn(...args);
+    } catch (err) {
+      addBreadcrumb('socket', `Erreur dans ${eventName}`, { socketId: socket.id }, 'error');
+      captureError(err, { socketId: socket.id, event: eventName });
+    }
   };
 
   registerReconnectHandler(socket, io, rooms);
-  registerLobbyHandlers(socket, io, rooms, safeHandler);
-  registerGameHandlers(socket, io, rooms, safeHandler);
-  registerBluffHandlers(socket, io, rooms, safeHandler);
-  registerDisconnectHandler(socket, io, rooms, safeHandler);
+  registerLobbyHandlers(socket, io, rooms);
+  registerGameHandlers(socket, io, rooms);
+  registerBluffHandlers(socket, io, rooms);
+  registerDisconnectHandler(socket, io, rooms);
 });
 
-// ── Sentry errorHandler (DOIT être après toutes les routes) ─────────────────────────
-// Capture les erreurs Express et les envoie à Sentry
+// ── Sentry errorHandler + fallback ───────────────────────────────────────────────────
 sentryErrorHandler(app);
-
-// Fallback error handler pour répondre au client
 app.use((err, req, res, _next) => {
   captureError(err, { url: req.url, method: req.method });
   res.status(err.status ?? 500).json({ error: err.message ?? 'Erreur serveur' });

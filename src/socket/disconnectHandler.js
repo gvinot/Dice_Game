@@ -1,7 +1,8 @@
 'use strict';
 
-const { logger } = require('../monitoring/logger');
-const { inc }    = require('../monitoring/metrics');
+const { logger }         = require('../monitoring/logger');
+const { inc }            = require('../monitoring/metrics');
+const { clearUserContext, addBreadcrumb } = require('../monitoring/sentry');
 
 const { publicRoom }         = require('../room/RoomFactory');
 const { doResolveTrick }     = require('../room/GameFlow');
@@ -39,6 +40,8 @@ function registerDisconnectHandler(socket, io, rooms) {
 
         logger.info('Disconnect', `Grace 30s → ${player.name}`, { code });
         inc('connectionsActive', -1);
+        addBreadcrumb('socket', `${player.name} déconnecté (grace 30s)`, { code, phase: room.phase }, 'warning');
+        clearUserContext();
       } else {
         finalizeDisconnect(code, room, socket.id, rooms, io);
       }
