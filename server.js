@@ -119,6 +119,11 @@ app.use((err, req, res, _next) => {
   res.status(err.status ?? 500).json({ error: err.message ?? 'Erreur serveur' });
 });
 
+// 100% local :
+//server.listen(3000, '127.0.0.1', () => {
+//console.log('Server running on localhost only');
+//;
+
 // ── Démarrage du serveur ─────────────────────────────────
 const PORT = process.env.PORT || 3000;
 server.listen(PORT, () => {

@@ -3,20 +3,222 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
-  <title>⚔️ Atouts Mythiques</title>
+  <title>Atouts Mythiques</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;700;900&family=Crimson+Pro:ital,wght@0,300;0,400;0,600;1,300&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="/css/style.css">
   <script src="/socket.io/socket.io.js"></script>
+  <style>
+    /* ── ICÔNES SVG ── */
+    .icon { display:inline-block; width:1em; height:1em; vertical-align:-.13em; fill:none; stroke:currentColor; stroke-width:2; stroke-linecap:round; stroke-linejoin:round; flex-shrink:0; }
+    .icon-fill { fill:currentColor; stroke:none; }
+    .die-icon { display:block; width:2rem; height:2rem; }
+    .die-icon-sm { display:block; width:1.3rem; height:1.3rem; }
+    .die-icon-xs { display:block; width:1rem; height:1rem; }
+
+    /* ── TRIANGLE HIÉRARCHIE ── */
+    .triangle-wrap { position:relative; width:260px; height:206px; margin:0 auto; }
+    .tri-die { position:absolute; width:72px; height:78px; }
+    .tri-die.t-top    { top:0;   left:50%; transform:translateX(-50%); }
+    .tri-die.t-botl   { bottom:0; left:0; }
+    .tri-die.t-botr   { bottom:0; right:0; }
+    .tri-svg { position:absolute; inset:0; width:100%; height:100%; overflow:visible; pointer-events:none; }
+
+    /* ── DECK LIST ── */
+    .deck-grid { display:flex; flex-direction:column; gap:6px; width:100%; }
+    .deck-row  { display:flex; align-items:center; gap:10px; padding:7px 10px; border-radius:10px; background:var(--surface); border:1px solid var(--border); cursor:pointer; transition:border-color .18s, transform .12s; user-select:none; }
+    .deck-row:hover  { border-color:var(--gold); transform:translateX(3px); }
+    .deck-row:active { transform:translateX(1px) scale(.98); }
+    .deck-row .deck-name { font-family:'Cinzel',serif; font-size:.78rem; color:var(--text); flex:1; }
+    .deck-row .deck-count { font-family:'Cinzel',serif; font-size:.78rem; color:var(--gold-lt); }
+    .deck-row .deck-hint  { font-size:.68rem; color:var(--muted); font-style:italic; }
+
+    /* ── MODALE PROBABILITÉS ── */
+    #prob-modal { display:none; position:fixed; inset:0; z-index:350; background:rgba(0,0,0,.82); backdrop-filter:blur(6px); align-items:center; justify-content:center; padding:20px; }
+    #prob-modal.open { display:flex; }
+    .prob-inner { background:var(--panel); border:1px solid var(--border); border-radius:16px; width:100%; max-width:340px; padding:20px 18px 24px; position:relative; }
+    .prob-header { display:flex; align-items:center; gap:12px; margin-bottom:18px; }
+    .prob-die-tile { width:56px; height:62px; flex-shrink:0; border-radius:12px; border:2px solid transparent; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:3px; }
+    .prob-die-tile .die-label { font-size:.55rem; }
+    .prob-bar-row { display:flex; align-items:center; gap:8px; margin-bottom:10px; }
+    .prob-bar-bg  { flex:1; height:10px; border-radius:5px; background:rgba(255,255,255,.07); overflow:hidden; }
+    .prob-bar-fill{ height:100%; border-radius:5px; }
+    .prob-outcome { font-family:'Cinzel',serif; font-size:.7rem; color:var(--text); min-width:80px; }
+    .prob-pct     { font-family:'Cinzel',serif; font-size:.72rem; color:var(--muted); min-width:36px; text-align:right; }
+    .prob-fraction{ font-size:.65rem; color:var(--muted); font-style:italic; min-width:30px; text-align:right; }
+  </style>
 </head>
 <body>
+
+<!-- ═══════════════════════════════════ -->
+<!--  ICÔNES SVG — DEFS CACHÉS          -->
+<!-- ═══════════════════════════════════ -->
+<svg style="display:none" xmlns="http://www.w3.org/2000/svg">
+
+  <!-- ── UI ── -->
+  <symbol id="ic-sword" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+    <polyline points="14.5 17.5 3 6 3 3 6 3 17.5 14.5"/>
+    <line x1="13" y1="19" x2="19" y2="13"/>
+    <line x1="16" y1="16" x2="20" y2="20"/>
+    <line x1="19" y1="21" x2="21" y2="19"/>
+  </symbol>
+
+  <symbol id="ic-mask" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M2 12c0-5.5 4.5-10 10-10s10 4.5 10 10-4.5 10-10 10S2 17.5 2 12z"/>
+    <path d="M8 13c0 1.7 1.3 3 3 3s3-1.3 3-3"/>
+    <circle cx="9" cy="9" r="1" fill="currentColor" stroke="none"/>
+    <circle cx="15" cy="9" r="1" fill="currentColor" stroke="none"/>
+  </symbol>
+
+  <symbol id="ic-trophy" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+    <line x1="8" y1="21" x2="16" y2="21"/>
+    <line x1="12" y1="17" x2="12" y2="21"/>
+    <path d="M7 4h10l-1 9c0 2.2-1.8 4-4 4s-4-1.8-4-4L7 4z"/>
+    <path d="M7 4H4c0 3 1.5 5.5 4 6.5"/>
+    <path d="M17 4h3c0 3-1.5 5.5-4 6.5"/>
+  </symbol>
+
+  <symbol id="ic-check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+    <circle cx="12" cy="12" r="10"/>
+    <polyline points="9 12 11 14 15 10"/>
+  </symbol>
+
+  <symbol id="ic-xmark" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+    <circle cx="12" cy="12" r="10"/>
+    <line x1="15" y1="9" x2="9" y2="15"/>
+    <line x1="9" y1="9" x2="15" y2="15"/>
+  </symbol>
+
+  <symbol id="ic-refresh" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+    <polyline points="1 4 1 10 7 10"/>
+    <path d="M3.51 15a9 9 0 1 0 .49-3.1"/>
+  </symbol>
+
+  <symbol id="ic-play" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+    <polygon points="5 3 19 12 5 21 5 3" fill="currentColor" stroke="none"/>
+  </symbol>
+
+  <symbol id="ic-back" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+    <polyline points="9 14 4 9 9 4"/>
+    <path d="M20 20v-7a4 4 0 0 0-4-4H4"/>
+  </symbol>
+
+  <symbol id="ic-info" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+    <circle cx="12" cy="12" r="10"/>
+    <line x1="12" y1="16" x2="12" y2="12"/>
+    <line x1="12" y1="8" x2="12.01" y2="8"/>
+  </symbol>
+
+  <!-- ── DÉS CRÉATURES ── -->
+
+  <!-- Minotaure : tête de taureau avec cornes -->
+  <symbol id="ic-minotaure" viewBox="0 0 32 32" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round">
+    <!-- Cornes gauche -->
+    <path d="M9 15 C8 11 5 8 7 5 C9 3 10 7 11 11" stroke-width="2"/>
+    <!-- Cornes droite -->
+    <path d="M23 15 C24 11 27 8 25 5 C23 3 22 7 21 11" stroke-width="2"/>
+    <!-- Tête -->
+    <ellipse cx="16" cy="18" rx="8" ry="7" stroke-width="2"/>
+    <!-- Yeux -->
+    <circle cx="13" cy="16" r="1.3" fill="currentColor" stroke="none"/>
+    <circle cx="19" cy="16" r="1.3" fill="currentColor" stroke="none"/>
+    <!-- Museau -->
+    <ellipse cx="16" cy="21.5" rx="3.5" ry="2.2" stroke-width="1.5"/>
+    <!-- Naseaux -->
+    <circle cx="14.4" cy="21.5" r="0.8" fill="currentColor" stroke="none"/>
+    <circle cx="17.6" cy="21.5" r="0.8" fill="currentColor" stroke="none"/>
+  </symbol>
+
+  <!-- Sirène : silhouette avec queue bifurquée -->
+  <symbol id="ic-sirene" viewBox="0 0 32 32" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round">
+    <!-- Chevelure -->
+    <path d="M11 9 C9 7 8 4 10 3" stroke-width="1.6"/>
+    <path d="M21 9 C23 7 24 4 22 3" stroke-width="1.6"/>
+    <!-- Tête -->
+    <circle cx="16" cy="9" r="4" stroke-width="2"/>
+    <!-- Corps -->
+    <path d="M12 13 C11 17 11 20 13 22 C14.2 23.2 15.2 23.5 16 23.5 C16.8 23.5 17.8 23.2 19 22 C21 20 21 17 20 13" stroke-width="2"/>
+    <!-- Transition corps → queue -->
+    <path d="M13 22 C12.2 25 12 27.5 13.5 29" stroke-width="1.8"/>
+    <path d="M19 22 C19.8 25 20 27.5 18.5 29" stroke-width="1.8"/>
+    <!-- Nageoires -->
+    <path d="M13 29 C11 28 9.5 29.5 11.5 30.5 C13 31.2 16 31 16 31 C16 31 19 31.2 20.5 30.5 C22.5 29.5 21 28 19 29" stroke-width="1.5"/>
+  </symbol>
+
+  <!-- Griffon : ailes déployées + tête d'aigle -->
+  <symbol id="ic-griffon" viewBox="0 0 32 32" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round">
+    <!-- Aile gauche -->
+    <path d="M16 17 C14 14 10 12 5 13 C2.5 13.5 2.5 16 5.5 15.5 C8.5 15 11.5 14.5 14 16" stroke-width="2"/>
+    <path d="M5.5 15.5 C4.5 17.5 4 19.5 5.5 19" stroke-width="1.5"/>
+    <path d="M9 15.2 C8 17.5 7.5 19.5 9.5 18.8" stroke-width="1.5"/>
+    <!-- Aile droite -->
+    <path d="M16 17 C18 14 22 12 27 13 C29.5 13.5 29.5 16 26.5 15.5 C23.5 15 20.5 14.5 18 16" stroke-width="2"/>
+    <path d="M26.5 15.5 C27.5 17.5 28 19.5 26.5 19" stroke-width="1.5"/>
+    <path d="M23 15.2 C24 17.5 24.5 19.5 22.5 18.8" stroke-width="1.5"/>
+    <!-- Corps -->
+    <ellipse cx="16" cy="19" rx="3" ry="4.5" stroke-width="2"/>
+    <!-- Tête -->
+    <circle cx="16" cy="9" r="3.5" stroke-width="2"/>
+    <!-- Bec -->
+    <path d="M19 8.5 L21.5 10 L19 11.5" stroke-width="1.5"/>
+    <!-- Œil -->
+    <circle cx="15" cy="9" r="0.9" fill="currentColor" stroke="none"/>
+    <!-- Plumes de queue -->
+    <path d="M14 23.5 C13 26 12.5 28 14 28" stroke-width="1.5"/>
+    <path d="M16 23.5 L16 28" stroke-width="1.5"/>
+    <path d="M18 23.5 C19 26 19.5 28 18 28" stroke-width="1.5"/>
+  </symbol>
+
+  <!-- ── DÉS NUMÉRIQUES ── -->
+
+  <!-- Rouge : face de dé, 6 points (valeurs hautes 5–7) -->
+  <symbol id="ic-rouge" viewBox="0 0 32 32">
+    <rect x="3" y="3" width="26" height="26" rx="6" fill="none" stroke="currentColor" stroke-width="2"/>
+    <circle cx="10" cy="10" r="2.1" fill="currentColor"/>
+    <circle cx="16" cy="10" r="2.1" fill="currentColor"/>
+    <circle cx="22" cy="10" r="2.1" fill="currentColor"/>
+    <circle cx="10" cy="22" r="2.1" fill="currentColor"/>
+    <circle cx="16" cy="22" r="2.1" fill="currentColor"/>
+    <circle cx="22" cy="22" r="2.1" fill="currentColor"/>
+  </symbol>
+
+  <!-- Jaune : face de dé, 4 points (valeurs moyennes 3–5) -->
+  <symbol id="ic-jaune" viewBox="0 0 32 32">
+    <rect x="3" y="3" width="26" height="26" rx="6" fill="none" stroke="currentColor" stroke-width="2"/>
+    <circle cx="10" cy="10" r="2.1" fill="currentColor"/>
+    <circle cx="22" cy="10" r="2.1" fill="currentColor"/>
+    <circle cx="10" cy="22" r="2.1" fill="currentColor"/>
+    <circle cx="22" cy="22" r="2.1" fill="currentColor"/>
+  </symbol>
+
+  <!-- Violet : face de dé, 2 points (valeurs basses 1–3) -->
+  <symbol id="ic-violet" viewBox="0 0 32 32">
+    <rect x="3" y="3" width="26" height="26" rx="6" fill="none" stroke="currentColor" stroke-width="2"/>
+    <circle cx="10" cy="10" r="2.1" fill="currentColor"/>
+    <circle cx="22" cy="22" r="2.1" fill="currentColor"/>
+  </symbol>
+
+  <!-- Gris : face de dé aléatoire (1 point central + demi-ombre) -->
+  <symbol id="ic-gris" viewBox="0 0 32 32">
+    <rect x="3" y="3" width="26" height="26" rx="6" fill="none" stroke="currentColor" stroke-width="2"/>
+    <path d="M3 16 L29 16 L29 22 Q29 29 22 29 L10 29 Q3 29 3 22 Z" fill="currentColor" opacity=".18"/>
+    <circle cx="16" cy="16" r="2.2" fill="currentColor"/>
+    <circle cx="10" cy="10" r="1.3" fill="currentColor" opacity=".4"/>
+    <circle cx="22" cy="22" r="1.3" fill="currentColor" opacity=".4"/>
+  </symbol>
+
+</svg>
+
 <!-- ════════════════════════════════════ -->
 <!-- ÉCRAN 1 · LOBBY                     -->
 <!-- ════════════════════════════════════ -->
 <div id="screen-lobby" class="screen active">
   <div class="screen-body" style="justify-content: center; gap: 22px;">
     <div class="fc" style="margin-top: 20px; gap: 4px;">
-      <div class="title-main">⚔️ Atouts<br>Mythiques</div>
+      <div class="title-main">
+        <svg class="icon" style="width:1em;height:1em;margin-right:.15em;vertical-align:-.1em;stroke:var(--gold);"><use href="#ic-sword"/></svg>
+        Atouts<br>Mythiques
+      </div>
       <div class="title-sub">Le jeu des créatures</div>
     </div>
 
@@ -53,7 +255,6 @@
 
     <div class="ornament">⸻ ✦ ⸻</div>
 
-    <!-- Sélecteur de manches : visible uniquement par le chef -->
     <div id="rounds-selector" class="panel w-full hidden">
       <h3 style="text-align:center; margin-bottom: 10px;">Nombre de manches</h3>
       <div style="display:flex; align-items:center; justify-content:center; gap: 20px;">
@@ -66,13 +267,15 @@
 
     <div id="waiting-players-list" class="players-list w-full"></div>
 
-    <!-- Toggle bluff mode (chef uniquement) -->
     <div id="bluff-toggle-wrap" class="w-full"
          style="display:none; align-items:center; justify-content:space-between;
                 background:var(--panel); border:1px solid var(--border);
                 border-radius:10px; padding:12px 16px;">
       <div>
-        <div style="font-family:'Cinzel',serif; font-size:.85rem; color:var(--text);">🎭 Mode Bluff</div>
+        <div style="font-family:'Cinzel',serif; font-size:.85rem; color:var(--text); display:flex; align-items:center; gap:6px;">
+          <svg class="icon" style="width:1.1em;height:1.1em;"><use href="#ic-mask"/></svg>
+          Mode Bluff
+        </div>
         <div style="font-size:.78rem; color:var(--muted); font-style:italic;">Aucune restriction de couleur</div>
       </div>
       <label style="position:relative; display:inline-block; width:48px; height:26px; cursor:pointer;">
@@ -92,7 +295,10 @@
   </div>
 
   <div class="screen-footer">
-    <button id="start-btn" class="btn btn-primary hidden" onclick="startGame()">▶ Lancer la partie</button>
+    <button id="start-btn" class="btn btn-primary hidden" onclick="startGame()">
+      <svg class="icon" style="margin-right:.3em;"><use href="#ic-play"/></svg>
+      Lancer la partie
+    </button>
     <p id="waiting-msg" class="text-muted hidden">En attente que le chef lance la partie…</p>
   </div>
 </div>
@@ -119,7 +325,8 @@
 
     <div id="bet-waiting-msg" class="fc hidden" style="gap: 8px;">
       <div class="panel" style="text-align:center; color: var(--success);">
-        ✅ <span id="bet-chosen-label"></span>
+        <svg class="icon" style="color:var(--success);"><use href="#ic-check"/></svg>
+        <span id="bet-chosen-label"></span>
       </div>
       <p id="bet-pending-list" class="text-muted"></p>
     </div>
@@ -136,12 +343,12 @@
     <div class="info-bar" style="margin-top: 10px;">
       <div class="info-pill">Manche <span id="play-round-num">1</span></div>
       <div class="info-pill">Pli <span id="play-trick-num">1</span> / <span id="play-round-total">?</span></div>
-      <!-- Badge mode bluff -->
-      <div id="bluff-mode-badge" class="info-pill hidden" style="color:#e8704a; border-color:rgba(232,112,74,.3);">🎭 Bluff</div>
+      <div id="bluff-mode-badge" class="info-pill hidden" style="color:#e8704a; border-color:rgba(232,112,74,.3);">
+        <svg class="icon" style="width:.9em;height:.9em;margin-right:.2em;"><use href="#ic-mask"/></svg>Bluff
+      </div>
     </div>
 
     <div id="turn-banner" class="turn-banner waiting w-full">…</div>
-
     <div id="player-status-row" class="player-status-row"></div>
 
     <h3>Pli en cours</h3>
@@ -165,8 +372,10 @@
            padding:10px 18px; border-radius:24px; border:2px solid rgba(232,112,74,.5);
            background:rgba(232,112,74,.1); color:#e8704a;
            font-family:'Cinzel',serif; font-size:.9rem; font-weight:700;
-           cursor:pointer; transition: all .2s; letter-spacing:.06em;">
-    🎭 Bluff !
+           cursor:pointer; transition: all .2s; letter-spacing:.06em;
+           display:flex; align-items:center; gap:6px;">
+    <svg class="icon" style="width:1em;height:1em;"><use href="#ic-mask"/></svg>
+    Bluff !
   </button>
 </div>
 
@@ -189,10 +398,9 @@
   </div>
 
   <div class="screen-footer">
-    <!-- Visible uniquement par le chef de salle -->
-    <button id="next-trick-btn"          class="btn btn-primary hidden" onclick="nextTrick()">Pli suivant →</button>
+    <button id="next-trick-btn"            class="btn btn-primary hidden" onclick="nextTrick()">Pli suivant →</button>
     <button id="next-round-from-trick-btn" class="btn btn-primary hidden" onclick="nextTrick()">Manche suivante →</button>
-    <p      id="wait-next-trick-msg"     class="text-muted hidden">En attente du chef de salle…</p>
+    <p      id="wait-next-trick-msg"       class="text-muted hidden">En attente du chef de salle…</p>
   </div>
 </div>
 
@@ -202,7 +410,10 @@
 <div id="screen-score" class="screen">
   <div class="screen-body">
     <div class="fc" style="margin-top: 16px; gap: 4px;">
-      <h2>🏆 Bilan de la manche</h2>
+      <h2>
+        <svg class="icon" style="width:1.1em;height:1.1em;margin-right:.2em;vertical-align:-.15em;"><use href="#ic-trophy"/></svg>
+        Bilan de la manche
+      </h2>
       <div id="score-round-label" class="title-sub"></div>
     </div>
 
@@ -227,22 +438,23 @@
     <div class="ornament">⸻ ✦ ⸻</div>
     <div id="final-scores-table" class="score-table w-full"></div>
 
-    <!-- Rejoindre pendant la fin de partie -->
     <div class="panel w-full" style="text-align:center;">
       <p class="text-muted small">D'autres joueurs peuvent encore rejoindre</p>
       <div id="gameover-code" class="room-code-badge" style="font-size:1.6rem; margin-top: 4px;"></div>
     </div>
 
-    <!-- Liste des joueurs présents -->
     <div id="gameover-players" class="players-list w-full"></div>
   </div>
 
   <div class="screen-footer">
-    <!-- Chef : proposer une nouvelle partie -->
     <button id="gameover-restart-btn" class="btn btn-primary hidden" onclick="requestRestart()">
-      🔄 Proposer une nouvelle partie
+      <svg class="icon" style="margin-right:.3em;"><use href="#ic-refresh"/></svg>
+      Proposer une nouvelle partie
     </button>
-    <button class="btn btn-secondary" onclick="quitToLobby()">↩ Quitter</button>
+    <button class="btn btn-secondary" onclick="quitToLobby()">
+      <svg class="icon" style="margin-right:.3em;"><use href="#ic-back"/></svg>
+      Quitter
+    </button>
   </div>
 </div>
 
@@ -252,47 +464,48 @@
 <div id="screen-restart-vote" class="screen">
   <div class="screen-body">
     <div class="fc" style="margin-top: 24px; gap: 4px;">
-      <div class="title-main" style="font-size: clamp(1.4rem,5vw,2rem);">🔄 Nouvelle partie ?</div>
+      <div class="title-main" style="font-size: clamp(1.4rem,5vw,2rem);">
+        <svg class="icon" style="width:.9em;height:.9em;margin-right:.2em;stroke:var(--gold);"><use href="#ic-refresh"/></svg>
+        Nouvelle partie ?
+      </div>
       <div class="title-sub">En attente des votes</div>
     </div>
 
     <div class="ornament">⸻ ✦ ⸻</div>
 
-    <!-- Votes en cours -->
     <div id="vote-players-list" class="players-list w-full"></div>
 
-    <!-- Rejoindre pendant le vote -->
     <div class="panel w-full" style="text-align:center;">
       <p class="text-muted small">Nouveaux joueurs — entrez ce code</p>
       <div id="vote-room-code" class="room-code-badge" style="font-size:1.6rem; margin-top: 4px;"></div>
     </div>
 
-    <!-- Boutons vote (non-chef) -->
     <div id="vote-buttons" class="fc hidden" style="gap: 10px;">
       <p class="text-muted">Voulez-vous rejouer ?</p>
       <div style="display:flex; gap: 12px; width:100%; max-width:340px;">
-        <button class="btn btn-primary" style="flex:1;" onclick="voteRestart(true)">✅ Oui</button>
-        <button class="btn btn-ghost"   style="flex:1;" onclick="voteRestart(false)">❌ Non</button>
+        <button class="btn btn-primary" style="flex:1;" onclick="voteRestart(true)">
+          <svg class="icon" style="margin-right:.25em;"><use href="#ic-check"/></svg>
+          Oui
+        </button>
+        <button class="btn btn-ghost" style="flex:1;" onclick="voteRestart(false)">
+          <svg class="icon" style="margin-right:.25em;"><use href="#ic-xmark"/></svg>
+          Non
+        </button>
       </div>
     </div>
 
-    <!-- Message après vote -->
     <div id="vote-done-msg" class="text-muted hidden">Vote enregistré — en attente du chef…</div>
   </div>
 
   <div class="screen-footer">
-    <!-- Chef : lancer quand il est prêt -->
     <button id="launch-restart-btn" class="btn btn-primary hidden" onclick="launchRestart()">
-      ▶ Lancer la nouvelle partie
+      <svg class="icon" style="margin-right:.3em;"><use href="#ic-play"/></svg>
+      Lancer la nouvelle partie
     </button>
     <p id="launch-restart-wait" class="text-muted hidden">En attente du chef de salle…</p>
   </div>
 </div>
 
-
-<!-- ════════════════════════════════════ -->
-<!--  JAVASCRIPT CLIENT                  -->
-<!-- ════════════════════════════════════ -->
 <!-- ════════════════════════════════════ -->
 <!-- OVERLAY BLUFF                        -->
 <!-- ════════════════════════════════════ -->
@@ -307,7 +520,7 @@
 
     <!-- Phase accusation (avant révélation) -->
     <div id="bluff-accusation-phase">
-      <div style="font-size:2.5rem; margin-bottom:8px;">🎭</div>
+      <svg class="icon" style="width:2.5rem;height:2.5rem;color:#e8704a;display:block;margin:0 auto 8px;"><use href="#ic-mask"/></svg>
       <div style="font-family:'Cinzel',serif; font-size:1.1rem; font-weight:700;
                   color:#e8704a; letter-spacing:.06em; margin-bottom:6px;">
         BLUFF APPELÉ !
@@ -319,7 +532,6 @@
       <div style="display:flex; justify-content:center; gap:8px; flex-wrap:wrap; margin-bottom:20px;">
         <div id="bluff-accused-die" class="die-tile" style="width:80px;height:88px;"></div>
       </div>
-      <!-- Compte à rebours visuel -->
       <div id="bluff-countdown"
            style="font-family:'Cinzel',serif; font-size:2rem; color:var(--gold); margin-bottom:6px;">3</div>
       <div style="font-size:.8rem; color:var(--muted); font-style:italic;">Révélation dans…</div>
@@ -333,11 +545,7 @@
                   letter-spacing:.08em; margin-bottom:10px;"></div>
       <div id="bluff-verdict-detail"
            style="font-size:.9rem; color:var(--muted); font-style:italic; margin-bottom:20px;"></div>
-
-      <!-- Deltas de score -->
       <div id="bluff-deltas" style="display:flex; flex-direction:column; gap:6px; margin-bottom:20px;"></div>
-
-      <!-- Bouton continuer (chef uniquement) -->
       <button id="bluff-continue-btn" class="btn btn-primary hidden" onclick="continueAfterBluff()">
         Continuer →
       </button>
@@ -356,7 +564,11 @@
          background:var(--panel); border:1px solid var(--border);
          color:var(--gold); font-size:1.3rem; cursor:pointer;
          box-shadow:0 4px 16px rgba(0,0,0,.5);
-         align-items:center; justify-content:center;">⚔️</button>
+         align-items:center; justify-content:center;">
+  <svg style="width:22px;height:22px;fill:none;stroke:var(--gold);stroke-width:2;stroke-linecap:round;stroke-linejoin:round;">
+    <use href="#ic-sword"/>
+  </svg>
+</button>
 
 <!-- ════════════════════════════════════ -->
 <!-- MODALE RÈGLES                        -->
@@ -374,57 +586,108 @@
     <button onclick="closeRules()" style="position:absolute; top:12px; right:14px;
       background:none; border:none; color:var(--muted); font-size:1.4rem; cursor:pointer;">✕</button>
 
+    <!-- Titre -->
     <div style="font-family:'Cinzel',serif; font-size:1rem; font-weight:700;
-                color:var(--gold-lt); text-align:center; letter-spacing:.1em; margin-bottom:18px;">
-      ⚔️ Règles des Atouts
+                color:var(--gold-lt); text-align:center; letter-spacing:.1em; margin-bottom:20px;
+                display:flex; align-items:center; justify-content:center; gap:8px;">
+      <svg style="width:1.1em;height:1.1em;fill:none;stroke:var(--gold-lt);stroke-width:2;stroke-linecap:round;stroke-linejoin:round;flex-shrink:0;">
+        <use href="#ic-sword"/>
+      </svg>
+      Règles des Atouts
     </div>
 
-    <!-- Section hiérarchie -->
+    <!-- ─── HIÉRARCHIE CYCLIQUE (TRIANGLE) ─── -->
     <div style="font-family:'Cinzel',serif; font-size:.68rem; color:var(--muted);
-                letter-spacing:.12em; text-transform:uppercase; margin-bottom:10px;">
+                letter-spacing:.12em; text-transform:uppercase; margin-bottom:12px;">
       Hiérarchie cyclique
     </div>
 
-    <!-- Cycle : Sirène → Mino → Griffon → (Sirène) -->
-    <div style="display:flex; align-items:center; justify-content:center; gap:6px; flex-wrap:nowrap; margin-bottom:10px;">
+    <!--
+      Triangle : Griffon en haut, Sirène en bas-gauche, Minotaure en bas-droit
+      Flèches (A bat B) :
+        Griffon  → Sirène     (gauche du triangle)
+        Sirène   → Minotaure  (bas du triangle, +50)
+        Minotaure → Griffon   (droite du triangle, +30)
+    -->
+    <div class="triangle-wrap" style="margin-bottom:14px;">
 
-      <div class="die-tile" data-type="SIRENE" style="width:70px;height:76px;flex-shrink:0;">
-        <div class="die-emoji">🧜</div>
-        <div class="die-label">Sirène</div>
-      </div>
-
-      <div style="text-align:center; flex-shrink:0;">
-        <div style="font-size:.6rem; color:var(--muted); font-style:italic;">bat</div>
-        <div style="color:var(--gold); font-size:1.2rem;">→</div>
-      </div>
-
-      <div class="die-tile" data-type="MINOTAURE" style="width:70px;height:76px;flex-shrink:0;">
-        <div class="die-emoji">🐂</div>
-        <div class="die-label">Minotaure</div>
-      </div>
-
-      <div style="text-align:center; flex-shrink:0;">
-        <div style="font-size:.6rem; color:var(--muted); font-style:italic;">bat</div>
-        <div style="color:var(--gold); font-size:1.2rem;">→</div>
-      </div>
-
-      <div class="die-tile" data-type="GRIFFON" style="width:70px;height:76px;flex-shrink:0;">
-        <div class="die-emoji">🦅</div>
+      <!-- Griffon — haut centre -->
+      <div class="die-tile tri-die t-top" data-type="GRIFFON" style="cursor:default;">
+        <svg class="die-icon"><use href="#ic-griffon"/></svg>
         <div class="die-label">Griffon</div>
       </div>
 
-      <div style="text-align:center; flex-shrink:0;">
-        <div style="font-size:.6rem; color:var(--muted); font-style:italic;">bat</div>
-        <div style="color:var(--gold); font-size:1.2rem;">↩</div>
+      <!-- Sirène — bas gauche -->
+      <div class="die-tile tri-die t-botl" data-type="SIRENE" style="cursor:default;">
+        <svg class="die-icon"><use href="#ic-sirene"/></svg>
+        <div class="die-label">Sirène</div>
       </div>
 
-    </div>
+      <!-- Minotaure — bas droit -->
+      <div class="die-tile tri-die t-botr" data-type="MINOTAURE" style="cursor:default;">
+        <svg class="die-icon"><use href="#ic-minotaure"/></svg>
+        <div class="die-label">Minotaure</div>
+      </div>
 
-    <!-- Cas spécial 3 atouts -->
+      <!--
+        SVG overlay : flèches + labels bonus
+        Coordonnées (260×206 container, tuile 72×78) :
+          Griffon  : x=[94,166] y=[0,78]  → centre (130, 39)
+          Sirène   : x=[0,72]  y=[128,206] → centre (36, 167)
+          Minotaure: x=[188,260] y=[128,206] → centre (224, 167)
+      -->
+      <svg class="tri-svg" viewBox="0 0 260 206" xmlns="http://www.w3.org/2000/svg">
+        <defs>
+          <marker id="arr-g" markerWidth="7" markerHeight="7" refX="5.5" refY="3.5" orient="auto">
+            <path d="M0,0 L7,3.5 L0,7 Z" fill="rgba(201,150,58,.55)"/>
+          </marker>
+          <marker id="arr-b" markerWidth="7" markerHeight="7" refX="5.5" refY="3.5" orient="auto">
+            <path d="M0,0 L7,3.5 L0,7 Z" fill="rgba(201,150,58,.85)"/>
+          </marker>
+        </defs>
+
+        <!-- Flèche Griffon → Sirène (côté gauche du triangle) -->
+        <line x1="106" y1="74" x2="62" y2="130"
+              stroke="rgba(201,150,58,.45)" stroke-width="1.5"
+              stroke-dasharray="5 3" marker-end="url(#arr-g)"/>
+        <!-- Label "bat" côté gauche -->
+        <text x="71" y="104" fill="rgba(201,150,58,.6)"
+              font-family="Cinzel,serif" font-size="9" text-anchor="middle"
+              transform="rotate(-50 71 104)">bat</text>
+
+        <!-- Flèche Sirène → Minotaure (+50, côté bas du triangle) -->
+        <line x1="75" y1="163" x2="184" y2="163"
+              stroke="rgba(201,150,58,.85)" stroke-width="2"
+              marker-end="url(#arr-b)"/>
+        <!-- Label +50 au-dessus de la flèche -->
+        <text x="129" y="154" fill="var(--gold-lt)"
+              font-family="Cinzel,serif" font-size="11" text-anchor="middle" font-weight="700">+50</text>
+        <!-- "bat →" sous la flèche -->
+        <text x="129" y="177" fill="rgba(201,150,58,.55)"
+              font-family="Cinzel,serif" font-size="8" text-anchor="middle">bat</text>
+
+        <!-- Flèche Minotaure → Griffon (+30, côté droit du triangle) -->
+        <line x1="200" y1="130" x2="158" y2="74"
+              stroke="rgba(201,150,58,.85)" stroke-width="2"
+              marker-end="url(#arr-b)"/>
+        <!-- Label +30 côté droit -->
+        <text x="194" y="106" fill="var(--gold-lt)"
+              font-family="Cinzel,serif" font-size="11" text-anchor="middle" font-weight="700">+30</text>
+        <text x="185" y="118" fill="rgba(201,150,58,.55)"
+              font-family="Cinzel,serif" font-size="8" text-anchor="middle">bat</text>
+      </svg>
+
+    </div><!-- /triangle-wrap -->
+
+    <!-- ─── CAS SPÉCIAL : 3 ATOUTS ─── -->
     <div style="background:rgba(201,150,58,.08); border:1px solid rgba(201,150,58,.3);
                 border-radius:10px; padding:10px 14px; margin-bottom:16px;
                 display:flex; align-items:center; gap:10px;">
-      <span style="font-size:1.6rem; flex-shrink:0;">🧜🐂🦅</span>
+      <div style="display:flex; gap:4px; flex-shrink:0;">
+        <div class="die-tile" data-type="SIRENE"    style="width:30px;height:34px;border-radius:6px;"><svg class="die-icon-xs"><use href="#ic-sirene"/></svg></div>
+        <div class="die-tile" data-type="MINOTAURE" style="width:30px;height:34px;border-radius:6px;"><svg class="die-icon-xs"><use href="#ic-minotaure"/></svg></div>
+        <div class="die-tile" data-type="GRIFFON"   style="width:30px;height:34px;border-radius:6px;"><svg class="die-icon-xs"><use href="#ic-griffon"/></svg></div>
+      </div>
       <div>
         <div style="font-family:'Cinzel',serif; font-size:.8rem; color:var(--gold-lt); margin-bottom:2px;">
           3 atouts présents
@@ -435,39 +698,143 @@
       </div>
     </div>
 
-    <!-- Séparateur -->
+    <!-- ─── SÉPARATEUR ─── -->
     <div style="border-top:1px solid var(--border); margin:14px 0;"></div>
 
-    <!-- Bonus -->
+    <!-- ─── COMPOSITION DU JEU (36 dés) ─── -->
     <div style="font-family:'Cinzel',serif; font-size:.68rem; color:var(--muted);
-                letter-spacing:.12em; text-transform:uppercase; margin-bottom:10px;">
-      Bonus de pli
+                letter-spacing:.12em; text-transform:uppercase; margin-bottom:10px;
+                display:flex; align-items:center; justify-content:space-between;">
+      <span>Composition du jeu</span>
+      <span style="color:var(--border);">36 dés — cliquez pour les probabilités</span>
     </div>
 
-    <div style="display:flex; align-items:center; gap:12px; margin-bottom:10px;
-                background:var(--surface); border:1px solid var(--border);
-                border-radius:10px; padding:10px 14px;">
-      <span style="font-size:1.5rem; flex-shrink:0;">🐂 › 🦅</span>
-      <div style="flex:1;">
-        <div style="font-family:'Cinzel',serif; font-size:.8rem; color:var(--gold-lt);">Minotaure bat Griffon(s)</div>
-        <div style="font-size:.8rem; color:var(--muted); font-style:italic;">+30 pts par Griffon</div>
+    <div class="deck-grid" style="margin-bottom:16px;">
+
+      <!-- Minotaure × 1 -->
+      <div class="deck-row" onclick="openProbModal('MINOTAURE')" title="Voir les probabilités">
+        <div class="die-tile" data-type="MINOTAURE" style="width:38px;height:42px;border-radius:8px;flex-shrink:0;">
+          <svg class="die-icon-sm"><use href="#ic-minotaure"/></svg>
+        </div>
+        <div class="deck-name">Minotaure</div>
+        <div class="deck-hint">atout</div>
+        <div class="deck-count">× 1</div>
+        <svg style="width:.85rem;height:.85rem;fill:none;stroke:var(--muted);stroke-width:2;stroke-linecap:round;flex-shrink:0;">
+          <use href="#ic-info"/>
+        </svg>
       </div>
-      <div style="font-family:'Cinzel',serif; font-size:1.1rem; color:#6dd99a; font-weight:700;">×30</div>
+
+      <!-- Sirène × 2 -->
+      <div class="deck-row" onclick="openProbModal('SIRENE')" title="Voir les probabilités">
+        <div class="die-tile" data-type="SIRENE" style="width:38px;height:42px;border-radius:8px;flex-shrink:0;">
+          <svg class="die-icon-sm"><use href="#ic-sirene"/></svg>
+        </div>
+        <div class="deck-name">Sirène</div>
+        <div class="deck-hint">atout</div>
+        <div class="deck-count">× 2</div>
+        <svg style="width:.85rem;height:.85rem;fill:none;stroke:var(--muted);stroke-width:2;stroke-linecap:round;flex-shrink:0;">
+          <use href="#ic-info"/>
+        </svg>
+      </div>
+
+      <!-- Griffon × 3 -->
+      <div class="deck-row" onclick="openProbModal('GRIFFON')" title="Voir les probabilités">
+        <div class="die-tile" data-type="GRIFFON" style="width:38px;height:42px;border-radius:8px;flex-shrink:0;">
+          <svg class="die-icon-sm"><use href="#ic-griffon"/></svg>
+        </div>
+        <div class="deck-name">Griffon</div>
+        <div class="deck-hint">atout</div>
+        <div class="deck-count">× 3</div>
+        <svg style="width:.85rem;height:.85rem;fill:none;stroke:var(--muted);stroke-width:2;stroke-linecap:round;flex-shrink:0;">
+          <use href="#ic-info"/>
+        </svg>
+      </div>
+
+      <!-- Séparateur -->
+      <div style="border-top:1px solid var(--border); margin:2px 0;"></div>
+
+      <!-- Rouge × 7 -->
+      <div class="deck-row" onclick="openProbModal('ROUGE')" title="Voir les probabilités">
+        <div class="die-tile" data-type="ROUGE" style="width:38px;height:42px;border-radius:8px;flex-shrink:0;">
+          <svg class="die-icon-sm"><use href="#ic-rouge"/></svg>
+        </div>
+        <div class="deck-name">Dé Rouge</div>
+        <div class="deck-hint">5 – 7</div>
+        <div class="deck-count">× 7</div>
+        <svg style="width:.85rem;height:.85rem;fill:none;stroke:var(--muted);stroke-width:2;stroke-linecap:round;flex-shrink:0;">
+          <use href="#ic-info"/>
+        </svg>
+      </div>
+
+      <!-- Jaune × 7 -->
+      <div class="deck-row" onclick="openProbModal('JAUNE')" title="Voir les probabilités">
+        <div class="die-tile" data-type="JAUNE" style="width:38px;height:42px;border-radius:8px;flex-shrink:0;">
+          <svg class="die-icon-sm"><use href="#ic-jaune"/></svg>
+        </div>
+        <div class="deck-name">Dé Jaune</div>
+        <div class="deck-hint">3 – 5</div>
+        <div class="deck-count">× 7</div>
+        <svg style="width:.85rem;height:.85rem;fill:none;stroke:var(--muted);stroke-width:2;stroke-linecap:round;flex-shrink:0;">
+          <use href="#ic-info"/>
+        </svg>
+      </div>
+
+      <!-- Violet × 8 -->
+      <div class="deck-row" onclick="openProbModal('VIOLET')" title="Voir les probabilités">
+        <div class="die-tile" data-type="VIOLET" style="width:38px;height:42px;border-radius:8px;flex-shrink:0;">
+          <svg class="die-icon-sm"><use href="#ic-violet"/></svg>
+        </div>
+        <div class="deck-name">Dé Violet</div>
+        <div class="deck-hint">1 – 3</div>
+        <div class="deck-count">× 8</div>
+        <svg style="width:.85rem;height:.85rem;fill:none;stroke:var(--muted);stroke-width:2;stroke-linecap:round;flex-shrink:0;">
+          <use href="#ic-info"/>
+        </svg>
+      </div>
+
+      <!-- Gris × 8 -->
+      <div class="deck-row" onclick="openProbModal('GRIS')" title="Voir les probabilités">
+        <div class="die-tile" data-type="GRIS" style="width:38px;height:42px;border-radius:8px;flex-shrink:0;">
+          <svg class="die-icon-sm"><use href="#ic-gris"/></svg>
+        </div>
+        <div class="deck-name">Dé Gris</div>
+        <div class="deck-hint">aléatoire</div>
+        <div class="deck-count">× 8</div>
+        <svg style="width:.85rem;height:.85rem;fill:none;stroke:var(--muted);stroke-width:2;stroke-linecap:round;flex-shrink:0;">
+          <use href="#ic-info"/>
+        </svg>
+      </div>
+
+    </div><!-- /deck-grid -->
+
+  </div><!-- /inner panel -->
+</div><!-- /rules-modal -->
+
+<!-- ════════════════════════════════════ -->
+<!-- MODALE PROBABILITÉS (Z-INDEX 350)   -->
+<!-- ════════════════════════════════════ -->
+<div id="prob-modal" onclick="closeProbModalOutside(event)">
+  <div class="prob-inner">
+
+    <button onclick="closeProbModal()"
+      style="position:absolute; top:12px; right:14px; background:none; border:none;
+             color:var(--muted); font-size:1.3rem; cursor:pointer; line-height:1;">✕</button>
+
+    <div class="prob-header">
+      <div id="prob-die-tile" class="prob-die-tile"></div>
+      <div>
+        <div id="prob-die-name"
+             style="font-family:'Cinzel',serif; font-size:.95rem; font-weight:700; color:var(--text); margin-bottom:2px;"></div>
+        <div id="prob-die-sub"
+             style="font-size:.78rem; color:var(--muted); font-style:italic;"></div>
+      </div>
     </div>
 
-    <div style="display:flex; align-items:center; gap:12px;
-                background:var(--surface); border:1px solid var(--border);
-                border-radius:10px; padding:10px 14px;">
-      <span style="font-size:1.5rem; flex-shrink:0;">🧜 › 🐂</span>
-      <div style="flex:1;">
-        <div style="font-family:'Cinzel',serif; font-size:.8rem; color:var(--gold-lt);">Sirène bat Minotaure</div>
-        <div style="font-size:.8rem; color:var(--muted); font-style:italic;">Bonus fixe</div>
-      </div>
-      <div style="font-family:'Cinzel',serif; font-size:1.1rem; color:#6dd99a; font-weight:700;">+50</div>
-    </div>
+    <div id="prob-bars"></div>
 
   </div>
 </div>
+
 <!-- ═══════════════════════════ JS MODULES ══════════════════════════ -->
 <script src="/js/config.js"></script>
 <script src="/js/ui.js"></script>
@@ -475,5 +842,151 @@
 <script src="/js/render.js"></script>
 <script src="/js/actions.js"></script>
 <script src="/js/socket.js"></script>
+
+<!-- ═══════════════════════ SCRIPT PROBABILITÉS ═══════════════════════ -->
+<script>
+(function () {
+  'use strict';
+
+  /* ── Données de probabilité (issues de Die.js) ── */
+  const DATA = {
+    MINOTAURE: {
+      name: 'Minotaure', sub: 'Atout · 1 dé dans le jeu',
+      icon: 'ic-minotaure', type: 'MINOTAURE',
+      outcomes: [
+        { label: 'Atout actif', n: 2, d: 3 },
+        { label: 'Inactif (raté)', n: 1, d: 3 }
+      ]
+    },
+    SIRENE: {
+      name: 'Sirène', sub: 'Atout · 2 dés dans le jeu',
+      icon: 'ic-sirene', type: 'SIRENE',
+      outcomes: [
+        { label: 'Atout actif', n: 2, d: 3 },
+        { label: 'Inactif (raté)', n: 1, d: 3 }
+      ]
+    },
+    GRIFFON: {
+      name: 'Griffon', sub: 'Atout · 3 dés dans le jeu',
+      icon: 'ic-griffon', type: 'GRIFFON',
+      outcomes: [
+        { label: 'Atout actif', n: 2, d: 3 },
+        { label: 'Inactif (raté)', n: 1, d: 3 }
+      ]
+    },
+    ROUGE: {
+      name: 'Dé Rouge', sub: 'Valeurs hautes · 7 dés dans le jeu',
+      icon: 'ic-rouge', type: 'ROUGE',
+      outcomes: [
+        { label: 'Valeur 5', n: 1, d: 3 },
+        { label: 'Valeur 6', n: 1, d: 3 },
+        { label: 'Valeur 7', n: 1, d: 3 }
+      ]
+    },
+    JAUNE: {
+      name: 'Dé Jaune', sub: 'Valeurs moyennes · 7 dés dans le jeu',
+      icon: 'ic-jaune', type: 'JAUNE',
+      outcomes: [
+        { label: 'Valeur 3', n: 1, d: 3 },
+        { label: 'Valeur 4', n: 1, d: 3 },
+        { label: 'Valeur 5', n: 1, d: 3 }
+      ]
+    },
+    VIOLET: {
+      name: 'Dé Violet', sub: 'Valeurs basses · 8 dés dans le jeu',
+      icon: 'ic-violet', type: 'VIOLET',
+      outcomes: [
+        { label: 'Valeur 1', n: 1, d: 3 },
+        { label: 'Valeur 2', n: 1, d: 3 },
+        { label: 'Valeur 3', n: 1, d: 3 }
+      ]
+    },
+    GRIS: {
+      name: 'Dé Gris', sub: 'Dé aléatoire · 8 dés dans le jeu',
+      icon: 'ic-gris', type: 'GRIS',
+      // 50% inactif ; 50%×2/3 = 1/3 valeur 1 ; 50%×1/3 = 1/6 valeur 7
+      outcomes: [
+        { label: 'Inactif (raté)',   n: 1, d: 2 },
+        { label: 'Valeur 1 (faible)', n: 1, d: 3 },
+        { label: 'Valeur 7 (haute)',  n: 1, d: 6 }
+      ]
+    }
+  };
+
+  /* Couleur associée à chaque type */
+  const COLOR = {
+    MINOTAURE: 'var(--mino-c)',  SIRENE: 'var(--sir-c)',
+    GRIFFON:   'var(--grif-c)',  ROUGE:  'var(--rouge-c)',
+    JAUNE:     'var(--jaune-c)', VIOLET: 'var(--violet-c)',
+    GRIS:      'var(--gris-c)'
+  };
+
+  /* ── Fraction → pourcentage ── */
+  function pct(n, d) {
+    const v = (n / d) * 100;
+    return Number.isInteger(v) ? v.toFixed(0) : v.toFixed(1);
+  }
+
+  function frac(n, d) {
+    // PGCD Euclide
+    let a = n, b = d;
+    while (b) { [a, b] = [b, a % b]; }
+    return `${n/a}/${d/a}`;
+  }
+
+  /* ── Ouvrir la modale probabilités ── */
+  window.openProbModal = function (dieType) {
+    const d = DATA[dieType];
+    if (!d) return;
+
+    const color = COLOR[dieType] || 'var(--gold)';
+
+    /* Tuile de dé dans l'en-tête */
+    const tile = document.getElementById('prob-die-tile');
+    tile.setAttribute('data-type', dieType);
+    tile.style.cssText = ''; // reset inline style
+    tile.innerHTML = `
+      <svg style="display:block;width:1.6rem;height:1.6rem;">
+        <use href="#${d.icon}"/>
+      </svg>
+      <div class="die-label" style="font-size:.5rem;">${d.name}</div>
+    `;
+
+    document.getElementById('prob-die-name').textContent = d.name;
+    document.getElementById('prob-die-sub').textContent  = d.sub;
+
+    /* Barres de probabilité */
+    const container = document.getElementById('prob-bars');
+    container.innerHTML = d.outcomes.map(o => {
+      const barW = Math.round((o.n / o.d) * 100);
+      return `
+        <div class="prob-bar-row">
+          <div class="prob-outcome">${o.label}</div>
+          <div class="prob-bar-bg">
+            <div class="prob-bar-fill" style="width:${barW}%;background:${color};opacity:.85;"></div>
+          </div>
+          <div class="prob-pct">${pct(o.n, o.d)} %</div>
+          <div class="prob-fraction">(${frac(o.n, o.d)})</div>
+        </div>
+      `;
+    }).join('');
+
+    document.getElementById('prob-modal').classList.add('open');
+  };
+
+  /* ── Fermeture ── */
+  window.closeProbModal = function () {
+    document.getElementById('prob-modal').classList.remove('open');
+  };
+
+  window.closeProbModalOutside = function (e) {
+    if (e.target === document.getElementById('prob-modal')) {
+      closeProbModal();
+    }
+  };
+
+})();
+</script>
+
 </body>
 </html>
