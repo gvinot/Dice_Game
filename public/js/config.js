@@ -1,6 +1,6 @@
 // ── Configuration des dés ────────────────────────────────
 const DIE_CFG = {
-  MINOTAURE : { emoji: '🐂', label: 'Minotaure', values: 'Atout' },
+  MINOTAURE : { emoji: '<svg class="die-icon"><use href="#ic-minotaure"/></svg>', label: 'Minotaure', values: 'Atout' },
   SIRENE    : { emoji: '🧜', label: 'Sirène',    values: 'Atout' },
   GRIFFON   : { emoji: '🦅', label: 'Griffon',   values: 'Atout' },
   ROUGE     : { emoji: '🔴', label: 'Rouge',     values: '5·6·7' },
