@@ -1,12 +1,12 @@
 // ── Configuration des dés ────────────────────────────────
 const DIE_CFG = {
   MINOTAURE : { emoji: '<svg class="die-icon"><use href="#ic-minotaure"/></svg>', label: 'Minotaure', values: 'Atout' },
-  SIRENE    : { emoji: '🧜', label: 'Sirène',    values: 'Atout' },
-  GRIFFON   : { emoji: '🦅', label: 'Griffon',   values: 'Atout' },
-  ROUGE     : { emoji: '🔴', label: 'Rouge',     values: '5·6·7' },
-  JAUNE     : { emoji: '🟡', label: 'Jaune',     values: '3·4·5' },
-  VIOLET    : { emoji: '🟣', label: 'Violet',    values: '1·2·3' },
-  GRIS      : { emoji: '⚫', label: 'Gris',      values: '0·1·7' },
+  SIRENE    : { emoji: '<svg class="die-icon"><use href="#ic-sirene"/></svg>', label: 'Sirène',    values: 'Atout' },
+  GRIFFON   : { emoji: '<svg class="die-icon"><use href="#ic-griffon"/></svg>', label: 'Griffon',   values: 'Atout' },
+  ROUGE     : { emoji: '<svg class="die-icon"><use href="#ic-rouge"/></svg>', label: 'Rouge',     values: '5·6·7' },
+  JAUNE     : { emoji: '<svg class="die-icon"><use href="#ic-jaune"/></svg>', label: 'Jaune',     values: '3·4·5' },
+  VIOLET    : { emoji: '<svg class="die-icon"><use href="#ic-violet"/></svg>', label: 'Violet',    values: '1·2·3' },
+  GRIS      : { emoji: '<svg class="die-icon"><use href="#ic-gris"/></svg>', label: 'Gris',      values: '0·1·7' },
 };
 
 const TRUMP_TYPES  = new Set(['MINOTAURE', 'SIRENE', 'GRIFFON']);

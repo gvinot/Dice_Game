@@ -50,8 +50,8 @@ var PROB_DATA = {
     name: 'De Gris', sub: 'Aleatoire — 8 des dans le jeu', icon: 'ic-gris',
     outcomes: [
       { label: 'Inactif (rate)',    n: 1, d: 2 },
-      { label: 'Valeur 1 (faible)', n: 1, d: 3 },
-      { label: 'Valeur 7 (haute)',  n: 1, d: 6 }
+      { label: 'Valeur 1 ', n: 1, d: 3 },
+      { label: 'Valeur 7 ',  n: 1, d: 6 }
     ]
   }
 };
