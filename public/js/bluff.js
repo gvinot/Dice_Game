@@ -11,8 +11,18 @@ function showBluffOverlay(bs) {
 
   document.getElementById('bluff-accuser-text').textContent =
     `🎭 ${bs.callerName} accuse…`;
-  document.getElementById('bluff-accused-text').textContent =
-    `${bs.accusedName} d'avoir bluffé sur ${DIE_CFG[bs.leadType]?.emoji ?? ''} ${DIE_CFG[bs.leadType]?.label ?? bs.leadType}`;
+
+  const el = document.getElementById('bluff-accused-text');
+  const cfg = DIE_CFG[bs.leadType] || {};
+
+  el.textContent = `${bs.accusedName} d'avoir bluffé sur `;
+
+  if (cfg.emoji) {
+    el.insertAdjacentHTML('beforeend', cfg.emoji);
+    el.append(' ');
+  }
+
+  el.append(cfg.label ?? bs.leadType);
 
   const dieEl        = document.getElementById('bluff-accused-die');
   dieEl.dataset.type = bs.accusedDie;
