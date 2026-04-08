@@ -712,7 +712,7 @@
     <div class="deck-grid" style="margin-bottom:16px;">
 
       <!-- Minotaure × 1 -->
-      <div class="deck-row" onclick="event.stopPropagation(); openProbModal('MINOTAURE')" title="Voir les probabilités">
+      <div class="deck-row" data-die="MINOTAURE" title="Voir les probabilités">
         <div class="die-tile" data-type="MINOTAURE" style="width:38px;height:42px;border-radius:8px;flex-shrink:0;">
           <svg class="die-icon-sm"><use href="#ic-minotaure"/></svg>
         </div>
@@ -725,7 +725,7 @@
       </div>
 
       <!-- Sirène × 2 -->
-      <div class="deck-row" onclick="event.stopPropagation(); openProbModal('SIRENE')" title="Voir les probabilités">
+      <div class="deck-row" data-die="SIRENE" title="Voir les probabilités">
         <div class="die-tile" data-type="SIRENE" style="width:38px;height:42px;border-radius:8px;flex-shrink:0;">
           <svg class="die-icon-sm"><use href="#ic-sirene"/></svg>
         </div>
@@ -738,7 +738,7 @@
       </div>
 
       <!-- Griffon × 3 -->
-      <div class="deck-row" onclick="event.stopPropagation(); openProbModal('GRIFFON')" title="Voir les probabilités">
+      <div class="deck-row" data-die="GRIFFON" title="Voir les probabilités">
         <div class="die-tile" data-type="GRIFFON" style="width:38px;height:42px;border-radius:8px;flex-shrink:0;">
           <svg class="die-icon-sm"><use href="#ic-griffon"/></svg>
         </div>
@@ -754,7 +754,7 @@
       <div style="border-top:1px solid var(--border); margin:2px 0;"></div>
 
       <!-- Rouge × 7 -->
-      <div class="deck-row" onclick="event.stopPropagation(); openProbModal('ROUGE')" title="Voir les probabilités">
+      <div class="deck-row" data-die="ROUGE" title="Voir les probabilités">
         <div class="die-tile" data-type="ROUGE" style="width:38px;height:42px;border-radius:8px;flex-shrink:0;">
           <svg class="die-icon-sm"><use href="#ic-rouge"/></svg>
         </div>
@@ -767,7 +767,7 @@
       </div>
 
       <!-- Jaune × 7 -->
-      <div class="deck-row" onclick="event.stopPropagation(); openProbModal('JAUNE')" title="Voir les probabilités">
+      <div class="deck-row" data-die="JAUNE" title="Voir les probabilités">
         <div class="die-tile" data-type="JAUNE" style="width:38px;height:42px;border-radius:8px;flex-shrink:0;">
           <svg class="die-icon-sm"><use href="#ic-jaune"/></svg>
         </div>
@@ -780,7 +780,7 @@
       </div>
 
       <!-- Violet × 8 -->
-      <div class="deck-row" onclick="event.stopPropagation(); openProbModal('VIOLET')" title="Voir les probabilités">
+      <div class="deck-row" data-die="VIOLET" title="Voir les probabilités">
         <div class="die-tile" data-type="VIOLET" style="width:38px;height:42px;border-radius:8px;flex-shrink:0;">
           <svg class="die-icon-sm"><use href="#ic-violet"/></svg>
         </div>
@@ -793,7 +793,7 @@
       </div>
 
       <!-- Gris × 8 -->
-      <div class="deck-row" onclick="event.stopPropagation(); openProbModal('GRIS')" title="Voir les probabilités">
+      <div class="deck-row" data-die="GRIS" title="Voir les probabilités">
         <div class="die-tile" data-type="GRIS" style="width:38px;height:42px;border-radius:8px;flex-shrink:0;">
           <svg class="die-icon-sm"><use href="#ic-gris"/></svg>
         </div>
@@ -843,85 +843,7 @@
 <script src="/js/actions.js"></script>
 <script src="/js/socket.js"></script>
 
-<!-- ═══════════════════════ SCRIPT PROBABILITÉS ═══════════════════════ -->
-<script>
-/* Données de probabilité par type de dé */
-var PROB_DATA = {
-  MINOTAURE: { name: 'Minotaure', sub: 'Atout — 1 dé dans le jeu',     icon: 'ic-minotaure',
-    outcomes: [{ label: 'Atout actif',    n: 2, d: 3 }, { label: 'Inactif (rate)', n: 1, d: 3 }] },
-  SIRENE:    { name: 'Sirene',    sub: 'Atout — 2 des dans le jeu',     icon: 'ic-sirene',
-    outcomes: [{ label: 'Atout actif',    n: 2, d: 3 }, { label: 'Inactif (rate)', n: 1, d: 3 }] },
-  GRIFFON:   { name: 'Griffon',   sub: 'Atout — 3 des dans le jeu',     icon: 'ic-griffon',
-    outcomes: [{ label: 'Atout actif',    n: 2, d: 3 }, { label: 'Inactif (rate)', n: 1, d: 3 }] },
-  ROUGE:     { name: 'De Rouge',  sub: 'Valeurs hautes — 7 des dans le jeu', icon: 'ic-rouge',
-    outcomes: [{ label: 'Valeur 5', n: 1, d: 3 }, { label: 'Valeur 6', n: 1, d: 3 }, { label: 'Valeur 7', n: 1, d: 3 }] },
-  JAUNE:     { name: 'De Jaune',  sub: 'Valeurs moyennes — 7 des dans le jeu', icon: 'ic-jaune',
-    outcomes: [{ label: 'Valeur 3', n: 1, d: 3 }, { label: 'Valeur 4', n: 1, d: 3 }, { label: 'Valeur 5', n: 1, d: 3 }] },
-  VIOLET:    { name: 'De Violet', sub: 'Valeurs basses — 8 des dans le jeu',  icon: 'ic-violet',
-    outcomes: [{ label: 'Valeur 1', n: 1, d: 3 }, { label: 'Valeur 2', n: 1, d: 3 }, { label: 'Valeur 3', n: 1, d: 3 }] },
-  GRIS:      { name: 'De Gris',   sub: 'Aleatoire — 8 des dans le jeu',       icon: 'ic-gris',
-    outcomes: [{ label: 'Inactif (rate)', n: 1, d: 2 }, { label: 'Valeur 1 (faible)', n: 1, d: 3 }, { label: 'Valeur 7 (haute)', n: 1, d: 6 }] }
-};
-
-var PROB_COLOR = {
-  MINOTAURE: 'var(--mino-c)', SIRENE: 'var(--sir-c)', GRIFFON: 'var(--grif-c)',
-  ROUGE: 'var(--rouge-c)', JAUNE: 'var(--jaune-c)', VIOLET: 'var(--violet-c)', GRIS: 'var(--gris-c)'
-};
-
-function probPct(n, d) {
-  var v = (n / d) * 100;
-  return (v % 1 === 0) ? String(v) : v.toFixed(1);
-}
-
-function probFrac(n, d) {
-  var a = n, b = d, t;
-  while (b) { t = b; b = a % b; a = t; }
-  return (n / a) + '/' + (d / a);
-}
-
-function openProbModal(dieType) {
-  var data = PROB_DATA[dieType];
-  if (!data) return;
-
-  var color = PROB_COLOR[dieType] || 'var(--gold)';
-
-  var tile = document.getElementById('prob-die-tile');
-  tile.removeAttribute('data-type');
-  tile.setAttribute('data-type', dieType);
-  tile.innerHTML =
-    '<svg style="display:block;width:1.6rem;height:1.6rem;"><use href="#' + data.icon + '"/></svg>' +
-    '<div class="die-label" style="font-size:.5rem;">' + data.name + '</div>';
-
-  document.getElementById('prob-die-name').textContent = data.name;
-  document.getElementById('prob-die-sub').textContent  = data.sub;
-
-  var html = '';
-  for (var i = 0; i < data.outcomes.length; i++) {
-    var o = data.outcomes[i];
-    var barW = Math.round((o.n / o.d) * 100);
-    html +=
-      '<div class="prob-bar-row">' +
-        '<div class="prob-outcome">' + o.label + '</div>' +
-        '<div class="prob-bar-bg"><div class="prob-bar-fill" style="width:' + barW + '%;background:' + color + ';opacity:.85;"></div></div>' +
-        '<div class="prob-pct">' + probPct(o.n, o.d) + ' %</div>' +
-        '<div class="prob-fraction">(' + probFrac(o.n, o.d) + ')</div>' +
-      '</div>';
-  }
-  document.getElementById('prob-bars').innerHTML = html;
-
-  document.getElementById('prob-modal').style.display = 'flex';
-}
-
-function closeProbModal() {
-  document.getElementById('prob-modal').style.display = 'none';
-}
-
-function closeProbModalOutside(e) {
-  if (e.target === document.getElementById('prob-modal')) {
-    closeProbModal();
-  }
-}
-</script>
+<script src="/js/prob-modal.js"></script>
 
 </body>
 </html>
