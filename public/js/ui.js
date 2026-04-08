@@ -16,7 +16,7 @@ function dieTile(type, index, clickable, valid = true) {
 // ── Résultat de lancer ───────────────────────────────────
 function rollResultHTML(roll) {
   if (!roll.active)   return `<div class="roll-result inactive"> Inactif</div>`;
-  if (roll.trumpType) return `<div class="roll-result trump">} Atout</div>`;
+  if (roll.trumpType) return `<div class="roll-result trump"> Atout</div>`;
   return `<div class="roll-result value">${roll.value}</div>`;
 }
 

@@ -240,13 +240,14 @@ function renderTrickResult(room, plays, winnerId, winnerName, newBonuses) {
   updateRulesFab('trick-result');
 
   document.getElementById('trick-winner-announce').textContent =
-    `🏆 ${winnerName} remporte le pli !`;
+    `<svg class="icon" style="width:1.1em;height:1.1em;margin-right:.2em;vertical-align:-.15em;"><use href="#ic-trophy"/></svg>
+     ${winnerName} remporte le pli !`;
 
   document.getElementById('trick-plays-final').innerHTML = `
     <div class="trick-plays">${
       plays.map(p => `
         <div class="play-result-card ${p.playerId === winnerId ? 'winner' : ''}">
-          <div class="play-name">${p.playerName} ${p.playerId === winnerId ? '🏆' : ''}</div>
+          <div class="play-name">${p.playerName} ${p.playerId === winnerId ? '<svg class="icon" style="width:1.1em;height:1.1em;margin-right:.2em;vertical-align:-.15em;"><use href="#ic-trophy"/></svg> ' : ''}</div>
           ${dieTile(p.dieType, -1, false)}
           ${rollResultHTML(p.roll)}
         </div>`).join('')
