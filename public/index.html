@@ -712,7 +712,7 @@
     <div class="deck-grid" style="margin-bottom:16px;">
 
       <!-- Minotaure × 1 -->
-      <div class="deck-row" onclick="openProbModal('MINOTAURE')" title="Voir les probabilités">
+      <div class="deck-row" onclick="event.stopPropagation(); openProbModal('MINOTAURE')" title="Voir les probabilités">
         <div class="die-tile" data-type="MINOTAURE" style="width:38px;height:42px;border-radius:8px;flex-shrink:0;">
           <svg class="die-icon-sm"><use href="#ic-minotaure"/></svg>
         </div>
@@ -725,7 +725,7 @@
       </div>
 
       <!-- Sirène × 2 -->
-      <div class="deck-row" onclick="openProbModal('SIRENE')" title="Voir les probabilités">
+      <div class="deck-row" onclick="event.stopPropagation(); openProbModal('SIRENE')" title="Voir les probabilités">
         <div class="die-tile" data-type="SIRENE" style="width:38px;height:42px;border-radius:8px;flex-shrink:0;">
           <svg class="die-icon-sm"><use href="#ic-sirene"/></svg>
         </div>
@@ -738,7 +738,7 @@
       </div>
 
       <!-- Griffon × 3 -->
-      <div class="deck-row" onclick="openProbModal('GRIFFON')" title="Voir les probabilités">
+      <div class="deck-row" onclick="event.stopPropagation(); openProbModal('GRIFFON')" title="Voir les probabilités">
         <div class="die-tile" data-type="GRIFFON" style="width:38px;height:42px;border-radius:8px;flex-shrink:0;">
           <svg class="die-icon-sm"><use href="#ic-griffon"/></svg>
         </div>
@@ -754,7 +754,7 @@
       <div style="border-top:1px solid var(--border); margin:2px 0;"></div>
 
       <!-- Rouge × 7 -->
-      <div class="deck-row" onclick="openProbModal('ROUGE')" title="Voir les probabilités">
+      <div class="deck-row" onclick="event.stopPropagation(); openProbModal('ROUGE')" title="Voir les probabilités">
         <div class="die-tile" data-type="ROUGE" style="width:38px;height:42px;border-radius:8px;flex-shrink:0;">
           <svg class="die-icon-sm"><use href="#ic-rouge"/></svg>
         </div>
@@ -767,7 +767,7 @@
       </div>
 
       <!-- Jaune × 7 -->
-      <div class="deck-row" onclick="openProbModal('JAUNE')" title="Voir les probabilités">
+      <div class="deck-row" onclick="event.stopPropagation(); openProbModal('JAUNE')" title="Voir les probabilités">
         <div class="die-tile" data-type="JAUNE" style="width:38px;height:42px;border-radius:8px;flex-shrink:0;">
           <svg class="die-icon-sm"><use href="#ic-jaune"/></svg>
         </div>
@@ -780,7 +780,7 @@
       </div>
 
       <!-- Violet × 8 -->
-      <div class="deck-row" onclick="openProbModal('VIOLET')" title="Voir les probabilités">
+      <div class="deck-row" onclick="event.stopPropagation(); openProbModal('VIOLET')" title="Voir les probabilités">
         <div class="die-tile" data-type="VIOLET" style="width:38px;height:42px;border-radius:8px;flex-shrink:0;">
           <svg class="die-icon-sm"><use href="#ic-violet"/></svg>
         </div>
@@ -793,7 +793,7 @@
       </div>
 
       <!-- Gris × 8 -->
-      <div class="deck-row" onclick="openProbModal('GRIS')" title="Voir les probabilités">
+      <div class="deck-row" onclick="event.stopPropagation(); openProbModal('GRIS')" title="Voir les probabilités">
         <div class="die-tile" data-type="GRIS" style="width:38px;height:42px;border-radius:8px;flex-shrink:0;">
           <svg class="die-icon-sm"><use href="#ic-gris"/></svg>
         </div>
@@ -821,7 +821,7 @@
              color:var(--muted); font-size:1.3rem; cursor:pointer; line-height:1;">✕</button>
 
     <div class="prob-header">
-      <div id="prob-die-tile" class="prob-die-tile"></div>
+      <div id="prob-die-tile" class="die-tile prob-die-tile"></div>
       <div>
         <div id="prob-die-name"
              style="font-family:'Cinzel',serif; font-size:.95rem; font-weight:700; color:var(--text); margin-bottom:2px;"></div>
@@ -943,8 +943,8 @@
 
     /* Tuile de dé dans l'en-tête */
     const tile = document.getElementById('prob-die-tile');
-    tile.setAttribute('data-type', dieType);
-    tile.style.cssText = ''; // reset inline style
+    tile.removeAttribute('data-type');            // force le navigateur à recalculer le style
+    tile.setAttribute('data-type', dieType); // reset inline style
     tile.innerHTML = `
       <svg style="display:block;width:1.6rem;height:1.6rem;">
         <use href="#${d.icon}"/>
