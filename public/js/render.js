@@ -180,9 +180,11 @@ function renderPlaying(room) {
  if (iAmAccused && isMyTurn) {
   const cfg = DIE_CFG[mustFollow.leadType] || {};
 
-  hintEl.textContent = '🚫 Bluff confirmé — jouez ';
-  hintEl.insertAdjacentHTML('beforeend', cfg.emoji);
-  hintEl.append(` ${cfg.label} ou un atout`);
+  hintEl.innerHTML = `<span style="display:inline-flex;align-items:center;justify-content:center;gap:6px;flex-wrap:wrap;">
+    <span>🚫 Bluff confirmé — jouez</span>
+    <svg style="display:inline-block;width:1.2em;height:1.2em;vertical-align:-.1em;" fill="currentColor"><use href="#ic-${mustFollow.leadType.toLowerCase()}"/></svg>
+    <span>${cfg.label ?? mustFollow.leadType} ou un atout</span>
+  </span>`;
 
   hintEl.classList.remove('hidden');
 
@@ -190,9 +192,10 @@ function renderPlaying(room) {
   const cfg = DIE_CFG[leadType] || {};
 
   if (S.myHand.some(t => t === leadType)) {
-    hintEl.textContent = '';
-    hintEl.insertAdjacentHTML('beforeend', cfg.emoji);
-    hintEl.append(` Vous devez jouer la couleur ${cfg.label} ou un atout`);
+    hintEl.innerHTML = `<span style="display:inline-flex;align-items:center;justify-content:center;gap:6px;flex-wrap:wrap;">
+      <svg style="display:inline-block;width:1.2em;height:1.2em;vertical-align:-.1em;" fill="currentColor"><use href="#ic-${leadType.toLowerCase()}"/></svg>
+      <span>Vous devez jouer la couleur <strong>${cfg.label}</strong> ou un atout</span>
+    </span>`;
     hintEl.classList.remove('hidden');
   } else {
     hintEl.classList.add('hidden');
