@@ -177,21 +177,29 @@ function renderPlaying(room) {
   const leadType = room.currentTrick?.[0]?.dieType;
   const hintEl   = document.getElementById('color-constraint-hint');
 
-  if (iAmAccused && isMyTurn) {
-    const cfg      = DIE_CFG[mustFollow.leadType] || {};
-    hintEl.textContent = `🚫 Bluff confirmé — jouez ${cfg.emoji} ${cfg.label} ou un atout`;
+ if (iAmAccused && isMyTurn) {
+  const cfg = DIE_CFG[mustFollow.leadType] || {};
+
+  hintEl.textContent = '🚫 Bluff confirmé — jouez ';
+  hintEl.insertAdjacentHTML('beforeend', cfg.emoji);
+  hintEl.append(` ${cfg.label} ou un atout`);
+
+  hintEl.classList.remove('hidden');
+
+} else if (!room.bluffMode && isMyTurn && room.currentTrick.length > 0 && NORMAL_TYPES.has(leadType)) {
+  const cfg = DIE_CFG[leadType] || {};
+
+  if (S.myHand.some(t => t === leadType)) {
+    hintEl.textContent = '';
+    hintEl.insertAdjacentHTML('beforeend', cfg.emoji);
+    hintEl.append(` Vous devez jouer la couleur ${cfg.label} ou un atout`);
     hintEl.classList.remove('hidden');
-  } else if (!room.bluffMode && isMyTurn && room.currentTrick.length > 0 && NORMAL_TYPES.has(leadType)) {
-    const cfg = DIE_CFG[leadType] || {};
-    if (S.myHand.some(t => t === leadType)) {
-      hintEl.textContent = `${cfg.emoji} Vous devez jouer la couleur ${cfg.label} ou un atout`;
-      hintEl.classList.remove('hidden');
-    } else {
-      hintEl.classList.add('hidden');
-    }
   } else {
     hintEl.classList.add('hidden');
   }
+} else {
+  hintEl.classList.add('hidden');
+}
 
   document.getElementById('hand-label').textContent = isMyTurn ? 'Choisissez un dé' : 'Votre main';
   document.getElementById('my-hand-playing').innerHTML =
