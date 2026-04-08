@@ -239,19 +239,54 @@ function renderTrickResult(room, plays, winnerId, winnerName, newBonuses) {
   showScreen('screen-trick-result');
   updateRulesFab('trick-result');
 
-  document.getElementById('trick-winner-announce').textContent =
-    `<svg class="icon" style="width:1.1em;height:1.1em;margin-right:.2em;vertical-align:-.15em;"><use href="#ic-trophy"/></svg>
-     ${winnerName} remporte le pli !`;
+  const el = document.getElementById('trick-winner-announce');
 
-  document.getElementById('trick-plays-final').innerHTML = `
-    <div class="trick-plays">${
-      plays.map(p => `
-        <div class="play-result-card ${p.playerId === winnerId ? 'winner' : ''}">
-          <div class="play-name">${p.playerName} ${p.playerId === winnerId ? '<svg class="icon" style="width:1.1em;height:1.1em;margin-right:.2em;vertical-align:-.15em;"><use href="#ic-trophy"/></svg> ' : ''}</div>
-          ${dieTile(p.dieType, -1, false)}
-          ${rollResultHTML(p.roll)}
-        </div>`).join('')
-    }</div>`;
+  el.innerHTML = `
+    <svg class="icon" style="width:1.1em;height:1.1em;margin-right:.2em;vertical-align:-.15em;">
+      <use href="#ic-trophy"></use>
+    </svg>
+  `;
+
+  el.append(` ${winnerName} remporte le pli !`);
+
+  const container = document.getElementById('trick-plays-final');
+  container.textContent = '';
+
+  const wrapper = document.createElement('div');
+  wrapper.className = 'trick-plays';
+
+  plays.forEach(p => {
+    const card = document.createElement('div');
+    card.className = `play-result-card ${p.playerId === winnerId ? 'winner' : ''}`;
+
+    const name = document.createElement('div');
+    name.className = 'play-name';
+
+    // texte sécurisé
+    name.append(p.playerName);
+
+    if (p.playerId === winnerId) {
+      const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+      svg.setAttribute('class', 'icon');
+      svg.setAttribute('style', 'width:1.1em;height:1.1em;margin-right:.2em;vertical-align:-.15em;');
+
+      const use = document.createElementNS('http://www.w3.org/2000/svg', 'use');
+      use.setAttributeNS('http://www.w3.org/1999/xlink', 'href', '#ic-trophy');
+
+      svg.appendChild(use);
+      name.appendChild(svg);
+    }
+
+    card.appendChild(name);
+
+    // ⚠️ à condition que ces fonctions soient safe
+    card.insertAdjacentHTML('beforeend', dieTile(p.dieType, -1, false));
+    card.insertAdjacentHTML('beforeend', rollResultHTML(p.roll));
+
+    wrapper.appendChild(card);
+  });
+
+  container.appendChild(wrapper);
 
   document.getElementById('trick-bonuses').innerHTML =
     (newBonuses && newBonuses.length > 0)
