@@ -5,7 +5,7 @@ const { startRound }           = require('../room/GameFlow');
 const { touchRoom }            = require('../room/RoomCleaner');
 const { assignSessionToken }   = require('../room/ReconnectionManager');
 
-const { setUserContext, addBreadcrumb } = require('../monitoring/sentry');
+const { setUserContext, setRoomContext, addBreadcrumb } = require('../monitoring/sentry');
 
 const JOINABLE_PHASES = new Set(['waiting', 'game-over', 'restart-vote']);
 
@@ -30,9 +30,9 @@ function registerLobbyHandlers(socket, io, rooms) {
   // ── Rejoindre une salle ──────────────────────────────────
   socket.on('join-room', ({ code, name }) => {
     const room = rooms.get(code?.toUpperCase());
-    if (!room)                                      return socket.emit('error', 'Salle introuvable.');
-    if (!JOINABLE_PHASES.has(room.phase))           return socket.emit('error', 'Partie déjà commencée.');
-    if (room.players.length >= 6)                   return socket.emit('error', 'Salle pleine (6 max).');
+    if (!room)                                      return socket.emit('game-error', 'Salle introuvable.');
+    if (!JOINABLE_PHASES.has(room.phase))           return socket.emit('game-error', 'Partie déjà commencée.');
+    if (room.players.length >= 6)                   return socket.emit('game-error', 'Salle pleine (6 max).');
     if (room.players.some(p => p.id === socket.id)) return;
 
     room.players.push(makePlayer(socket.id, name));
@@ -78,7 +78,7 @@ function registerLobbyHandlers(socket, io, rooms) {
   socket.on('start-game', ({ code }) => {
     const room = rooms.get(code);
     if (!room || room.hostId !== socket.id || room.phase !== 'waiting') return;
-    if (room.players.length < 2) return socket.emit('error', 'Minimum 2 joueurs.');
+    if (room.players.length < 2) return socket.emit('game-error', 'Minimum 2 joueurs.');
     startRound(room, io);
   });
 
@@ -108,7 +108,7 @@ function registerLobbyHandlers(socket, io, rooms) {
   socket.on('launch-restart', ({ code }) => {
     const room = rooms.get(code);
     if (!room || room.hostId !== socket.id || room.phase !== 'restart-vote') return;
-    if (room.players.length < 2) return socket.emit('error', 'Minimum 2 joueurs.');
+    if (room.players.length < 2) return socket.emit('game-error', 'Minimum 2 joueurs.');
 
     room.players
       .filter(p => room.restartVotes[p.id] === false)
@@ -121,7 +121,7 @@ function registerLobbyHandlers(socket, io, rooms) {
     room.players = room.players.filter(p => room.restartVotes[p.id] !== false);
 
     if (room.players.length < 2)
-      return socket.emit('error', 'Pas assez de joueurs après les refus.');
+      return socket.emit('game-error', 'Pas assez de joueurs après les refus.');
     if (!room.players.find(p => p.id === room.hostId))
       room.hostId = room.players[0].id;
 
