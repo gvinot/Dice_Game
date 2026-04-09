@@ -15,21 +15,19 @@ function showBluffOverlay(bs) {
   const el = document.getElementById('bluff-accused-text');
   const cfg = DIE_CFG[bs.leadType] || {};
 
-  el.textContent = '';
-  const nameSpan = document.createElement('span');
-  nameSpan.textContent = `${bs.accusedName} d'avoir bluffé sur `;
-  el.appendChild(nameSpan);
-  el.insertAdjacentHTML('beforeend',
-    `<span style="display:inline-flex;align-items:center;gap:4px;">
-      <svg style="display:inline-block;width:1.1em;height:1.1em;vertical-align:-.1em;" fill="currentColor"><use href="#ic-${bs.leadType.toLowerCase()}"/></svg>
-      <span>${cfg.label ?? bs.leadType}</span>
-    </span>`
-  );
+  const iconId1 = `ic-${bs.leadType.toLowerCase()}`;
+  el.innerHTML  =
+    `<span>${bs.accusedName} d'avoir bluffé sur </span>` +
+    `<span style="display:inline-flex;align-items:center;gap:4px;white-space:nowrap;">` +
+      `<svg style="display:inline-block;width:1.1em;height:1.1em;vertical-align:-.15em;fill:currentColor;" xmlns="http://www.w3.org/2000/svg"><use href="#${iconId1}"/></svg>` +
+      `<span>${cfg.label ?? bs.leadType}</span>` +
+    `</span>`;
 
   const dieEl        = document.getElementById('bluff-accused-die');
   dieEl.dataset.type = bs.accusedDie;
-  dieEl.innerHTML = `${DIE_CFG[bs.accusedDie]?.emoji ?? ''}
-    <div class="die-label">${DIE_CFG[bs.accusedDie]?.label ?? bs.accusedDie}</div>`;
+  const accusedCfg   = DIE_CFG[bs.accusedDie] ?? {};
+  dieEl.innerHTML    = (accusedCfg.emoji ?? '') +
+    `<div class="die-label">${accusedCfg.label ?? bs.accusedDie}</div>`;
 
   accusePhase.style.display = 'block';
   revealPhase.style.display = 'none';

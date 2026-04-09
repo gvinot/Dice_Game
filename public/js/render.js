@@ -178,24 +178,26 @@ function renderPlaying(room) {
   const hintEl   = document.getElementById('color-constraint-hint');
 
  if (iAmAccused && isMyTurn) {
-  const cfg = DIE_CFG[mustFollow.leadType] || {};
-
-  hintEl.innerHTML = `<span style="display:inline-flex;align-items:center;justify-content:center;gap:6px;flex-wrap:wrap;">
-    <span>🚫 Bluff confirmé — jouez</span>
-    <svg style="display:inline-block;width:1.2em;height:1.2em;vertical-align:-.1em;" fill="currentColor"><use href="#ic-${mustFollow.leadType.toLowerCase()}"/></svg>
-    <span>${cfg.label ?? mustFollow.leadType} ou un atout</span>
-  </span>`;
-
+  const cfg     = DIE_CFG[mustFollow.leadType] || {};
+  const iconId3 = `ic-${mustFollow.leadType.toLowerCase()}`;
+  hintEl.innerHTML =
+    `<span style="display:inline-flex;align-items:center;justify-content:center;gap:6px;flex-wrap:wrap;">` +
+      `<span>🚫 Bluff confirmé — jouez</span>` +
+      `<svg style="display:inline-block;width:1.2em;height:1.2em;vertical-align:-.15em;fill:currentColor;" xmlns="http://www.w3.org/2000/svg"><use href="#${iconId3}"/></svg>` +
+      `<span>${cfg.label ?? mustFollow.leadType} ou un atout</span>` +
+    `</span>`;
   hintEl.classList.remove('hidden');
 
 } else if (!room.bluffMode && isMyTurn && room.currentTrick.length > 0 && NORMAL_TYPES.has(leadType)) {
   const cfg = DIE_CFG[leadType] || {};
 
   if (S.myHand.some(t => t === leadType)) {
-    hintEl.innerHTML = `<span style="display:inline-flex;align-items:center;justify-content:center;gap:6px;flex-wrap:wrap;">
-      <svg style="display:inline-block;width:1.2em;height:1.2em;vertical-align:-.1em;" fill="currentColor"><use href="#ic-${leadType.toLowerCase()}"/></svg>
-      <span>Vous devez jouer la couleur <strong>${cfg.label}</strong> ou un atout</span>
-    </span>`;
+    const iconId4 = `ic-${leadType.toLowerCase()}`;
+    hintEl.innerHTML =
+      `<span style="display:inline-flex;align-items:center;justify-content:center;gap:6px;flex-wrap:wrap;">` +
+        `<svg style="display:inline-block;width:1.2em;height:1.2em;vertical-align:-.15em;fill:currentColor;" xmlns="http://www.w3.org/2000/svg"><use href="#${iconId4}"/></svg>` +
+        `<span>Vous devez jouer la couleur <strong>${cfg.label}</strong> ou un atout</span>` +
+      `</span>`;
     hintEl.classList.remove('hidden');
   } else {
     hintEl.classList.add('hidden');
