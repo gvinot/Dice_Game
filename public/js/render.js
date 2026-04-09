@@ -10,7 +10,9 @@ function renderWaiting(room) {
   document.getElementById('waiting-players-list').innerHTML =
     room.players.map(p => `
       <div class="player-item ${p.id === room.hostId ? 'host' : ''}">
-        <span>${p.id === room.hostId ? '👑' : '👤'}</span>
+        <svg class="icon" style="width:1.1em;height:1.1em; color:${p.id === room.hostId ? 'gold' : '#aaa'};">
+          <use href="${p.id === room.hostId ? '#ic-crown' : '#ic-player'}"></use>
+        </svg>
         <span>${p.name}</span>
         ${p.id === room.hostId ? '<span class="badge">Chef de salle</span>' : ''}
       </div>`).join('');
