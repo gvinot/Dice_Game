@@ -61,12 +61,20 @@ function revealBluff(bs, accusePhase, revealPhase) {
   const waitMsg = document.getElementById('bluff-wait-msg');
 
   if (bs.isBluff) {
-    icon.textContent   = '💥';
+    icon.innerHTML = `
+      <svg class="icon" style="width:1.2em;height:1.2em;vertical-align:middle;">
+        <use href="#ic-burst"></use>
+      </svg>
+    `;
     title.textContent  = 'BLUFF CONFIRMÉ !';
     title.style.color  = '#e8704a';
     detail.textContent = `${bs.accusedName} avait bien la couleur. Il doit rejouer.`;
   } else {
-    icon.textContent   = '❌';
+    icon.innerHTML = `
+      <svg class="icon" style="width:1.2em;height:1.2em;vertical-align:middle;">
+        <use href="#ic-xmark"></use>
+      </svg>
+    `;
     title.textContent  = 'PAS UN BLUFF !';
     title.style.color  = '#4e9e6e';
     detail.textContent = `${bs.accusedName} n'avait pas la couleur. ${bs.callerName} perd des points.`;

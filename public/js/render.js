@@ -98,14 +98,22 @@ function updateBettingStatus(room) {
   document.getElementById('betting-players-status').innerHTML =
     room.players.map(p => `
       <div class="status-chip ${p.bet !== null ? 'played' : ''}">
-        ${p.bet !== null ? '✅' : '⏳'} ${p.name}
+        ${
+          p.bet !== null
+            ? `<svg class="icon" style="width:1em;height:1em;vertical-align:middle;color:#4caf50;">
+                 <use href="#ic-check"></use>
+               </svg>`
+            : `<svg class="icon" style="width:1em;height:1em;vertical-align:-.12em;flex-shrink:0;color:var(--muted);"><use href="#ic-hourglass"></use></svg>`
+        }
+        
+        ${p.name}
       </div>`).join('');
 
   if (S.myBetPlaced) {
     const pending = room.players.filter(p => p.bet === null).map(p => p.name);
-    document.getElementById('bet-pending-list').textContent = pending.length > 0
-      ? `⏳ En attente de : ${pending.join(', ')}`
-      : '✅ Tous prêts !';
+    document.getElementById('bet-pending-list').innerHTML = pending.length > 0
+      ? `<svg class="icon" style="width:1em;height:1em;vertical-align:-.12em;flex-shrink:0;color:var(--muted);"><use href="#ic-hourglass"></use></svg> En attente de : ${pending.join(', ')}`
+      : `<svg class="icon" style="width:1em;height:1em;vertical-align:-.12em;flex-shrink:0;color:var(--success);"><use href="#ic-check"></use></svg> Tous prêts !`;
   }
 }
 
@@ -126,17 +134,17 @@ function renderPlaying(room) {
   banner.style.border     = '';
   banner.style.color      = '';
   if (room.bluffWindowOpen) {
-    banner.textContent      = '🎭 Fenêtre bluff ouverte — 4 secondes pour accuser !';
+    banner.innerHTML        = `<svg class="icon" style="width:1em;height:1em;vertical-align:-.12em;flex-shrink:0;color:#e8704a;"><use href="#ic-mask"></use></svg> Fenêtre bluff ouverte — 4 secondes pour accuser !`;
     banner.className        = 'turn-banner w-full';
     banner.style.background = 'rgba(232,112,74,.12)';
     banner.style.border     = '1px solid rgba(232,112,74,.4)';
     banner.style.color      = '#e8704a';
   } else if (isMyTurn) {
-    banner.textContent = '🎯 C\'est votre tour — choisissez un dé !';
+    banner.innerHTML   = `<svg class="icon" style="width:1em;height:1em;vertical-align:-.12em;flex-shrink:0;color:currentColor;"><use href="#ic-crossed-swords"></use></svg> C'est votre tour — choisissez un dé !`;
     banner.className   = 'turn-banner my-turn w-full';
   } else {
     const cur          = room.players.find(p => p.id === room.currentPlayerId);
-    banner.textContent = cur ? `⏳ Tour de ${cur.name}…` : '…';
+    banner.innerHTML   = cur ? `<svg class="icon" style="width:1em;height:1em;vertical-align:-.12em;flex-shrink:0;color:var(--muted);"><use href="#ic-hourglass"></use></svg> Tour de ${cur.name}…` : '…';
     banner.className   = 'turn-banner waiting w-full';
   }
 
@@ -163,7 +171,7 @@ function renderPlaying(room) {
     room.players.map(p => {
       const hasPl = played.has(p.id);
       const isCur = p.id === room.currentPlayerId;
-      const icon  = hasPl ? '✅' : isCur ? '🎲' : '⏳';
+      const icon  = hasPl ? `<svg class="icon" style="width:1em;height:1em;vertical-align:-.12em;flex-shrink:0;color:var(--success);"><use href="#ic-check"></use></svg>` : isCur ? `<svg class="icon" style="width:1em;height:1em;vertical-align:-.12em;flex-shrink:0;color:var(--gold);"><use href="#ic-dice"></use></svg>` : `<svg class="icon" style="width:1em;height:1em;vertical-align:-.12em;flex-shrink:0;color:var(--muted);"><use href="#ic-hourglass"></use></svg>`;
       const cls   = hasPl ? 'played' : isCur ? 'active-player' : '';
       return `<div class="status-chip ${cls}">${icon} ${p.name}</div>`;
     }).join('');
@@ -184,7 +192,7 @@ function renderPlaying(room) {
   const iconId3 = `ic-${mustFollow.leadType.toLowerCase()}`;
   hintEl.innerHTML =
     `<span style="display:inline-flex;align-items:center;justify-content:center;gap:6px;flex-wrap:wrap;">` +
-      `<span>🚫 Bluff confirmé — jouez</span>` +
+      `<span><svg class="icon" style="width:1em;height:1em;vertical-align:-.12em;flex-shrink:0;color:#e8704a;"><use href="#ic-hand"></use></svg> Bluff confirmé — jouez</span>` +
       `<svg style="display:inline-block;width:1.2em;height:1.2em;vertical-align:-.15em;fill:currentColor;" xmlns="http://www.w3.org/2000/svg"><use href="#${iconId3}"/></svg>` +
       `<span>${cfg.label ?? mustFollow.leadType} ou un atout</span>` +
     `</span>`;
@@ -351,7 +359,7 @@ function renderRoundScore(room, roundScores, bluffScores = {}) {
       const bonusPts = p.bonuses.reduce((s, b) => s + b.points, 0);
       const details  = [`${p.tricksWon} pli${p.tricksWon !== 1 ? 's' : ''} / pari ${p.bet}`];
       if (bonusPts !== 0) details.push(`⭐ +${bonusPts}`);
-      if (bs !== 0)       details.push(`🎭 ${bs > 0 ? '+' : ''}${bs}`);
+      if (bs !== 0)       details.push(`<svg class="icon" style="width:1em;height:1em;vertical-align:-.12em;flex-shrink:0;color:currentColor;"><use href="#ic-mask"></use></svg> ${bs > 0 ? '+' : ''}${bs}`);
       const baseOnly = rs - bonusPts;
       const parts    = [];
       if (baseOnly !== 0) parts.push(`${baseOnly > 0 ? '+' : ''}${baseOnly} paris`);
@@ -400,7 +408,9 @@ function renderGameOver(room) {
   document.getElementById('gameover-players').innerHTML =
     room.players.map(p => `
       <div class="player-item ${p.id === room.hostId ? 'host' : ''}">
-        <span>${p.id === room.hostId ? '👑' : '👤'}</span>
+        <svg class="icon" style="width:1.1em;height:1.1em; color:${p.id === room.hostId ? 'gold' : '#aaa'};">
+          <use href="${p.id === room.hostId ? '#ic-crown' : '#ic-player'}"></use>
+        </svg>
         <span>${p.name}</span>
       </div>`).join('');
 
@@ -417,11 +427,13 @@ function renderRestartVote(room) {
   document.getElementById('vote-players-list').innerHTML =
     room.players.map(p => {
       const v     = p.restartVote;
-      const icon  = v === true ? '✅' : v === false ? '❌' : '⏳';
+      const icon  = v === true ? `<svg class="icon" style="width:1em;height:1em;vertical-align:-.12em;flex-shrink:0;color:var(--success);"><use href="#ic-check"></use></svg>` : v === false ? `<svg class="icon" style="width:1em;height:1em;vertical-align:-.12em;flex-shrink:0;color:var(--danger);"><use href="#ic-xmark"></use></svg>` : `<svg class="icon" style="width:1em;height:1em;vertical-align:-.12em;flex-shrink:0;color:var(--muted);"><use href="#ic-hourglass"></use></svg>`;
       const label = v === true ? 'Oui' : v === false ? 'Non' : 'En attente…';
       const cls   = p.id === room.hostId ? 'host' : '';
       return `<div class="player-item ${cls}">
-        <span>${p.id === room.hostId ? '👑' : '👤'}</span>
+        <svg class="icon" style="width:1.1em;height:1.1em; color:${p.id === room.hostId ? 'gold' : '#aaa'};">
+          <use href="${p.id === room.hostId ? '#ic-crown' : '#ic-player'}"></use>
+        </svg>
         <span style="flex:1;">${p.name}</span>
         <span style="font-family:'Cinzel',serif; font-size:.85rem;">${icon} ${label}</span>
       </div>`;
@@ -442,9 +454,9 @@ function renderRestartVote(room) {
     } else {
       voteBtns.classList.add('hidden');
       doneMsg.classList.remove('hidden');
-      doneMsg.textContent = myVote
-        ? '✅ Vous avez voté Oui — en attente du chef…'
-        : '❌ Vous avez voté Non — en attente du chef…';
+      doneMsg.innerHTML   = myVote
+        ? `<svg class="icon" style="width:1em;height:1em;vertical-align:-.12em;flex-shrink:0;color:var(--success);"><use href="#ic-check"></use></svg> Vous avez voté Oui — en attente du chef…`
+        : `<svg class="icon" style="width:1em;height:1em;vertical-align:-.12em;flex-shrink:0;color:var(--danger);"><use href="#ic-xmark"></use></svg> Vous avez voté Non — en attente du chef…`;
     }
   } else {
     voteBtns.classList.add('hidden');
