@@ -43,7 +43,7 @@ function renderWaiting(room) {
     S_chosenRounds = chosen;
     document.getElementById('rounds-display').textContent = chosen;
     document.getElementById('rounds-hint').textContent    = wasReduced
-      ? `⚠️ Réduit à ${actual} (trop de joueurs)`
+      ? `<svg class="icon" style="width:1em;height:1em;vertical-align:-.12em;flex-shrink:0;color:#e8704a;"><use href="#ic-warning"></use></svg> Réduit à ${actual} (trop de joueurs)`
       : `Max ${actual} avec ${room.players.length} joueur(s)`;
   } else {
     selector.classList.add('hidden');
@@ -62,10 +62,10 @@ function renderWaiting(room) {
   if (S.isHost) {
     startBtn.classList.remove('hidden');
     waitingMsg.classList.add('hidden');
-    startBtn.disabled    = room.players.length < 2;
-    startBtn.textContent = room.players.length < 2
-      ? '⌛ En attente de joueurs…'
-      : `▶ Lancer (${room.players.length} joueurs)`;
+    startBtn.disabled   = room.players.length < 2;
+    startBtn.innerHTML  = room.players.length < 2
+      ? `<svg class="icon" style="width:1em;height:1em;vertical-align:-.12em;flex-shrink:0;color:var(--muted);"><use href="#ic-hourglass"></use></svg> En attente de joueurs…`
+      : `<svg class="icon" style="width:1em;height:1em;vertical-align:-.12em;flex-shrink:0;color:currentColor;"><use href="#ic-play"></use></svg> Lancer (${room.players.length} joueurs)`;
   } else {
     startBtn.classList.add('hidden');
     waitingMsg.classList.remove('hidden');
@@ -315,8 +315,8 @@ function renderTrickResult(room, plays, winnerId, winnerName, newBonuses) {
     (newBonuses && newBonuses.length > 0)
       ? newBonuses.map(b => `<div class="bonus-badge">${
           b.type === 'MINO_VS_GRIFFON'
-            ? `⭐ Minotaure bat ${b.count} Griffon${b.count > 1 ? 's' : ''} (+${b.points} pts)`
-            : '⭐ Sirène bat Minotaure (+50 pts)'
+            ? `<svg class="icon" style="width:1em;height:1em;vertical-align:-.12em;flex-shrink:0;color:var(--gold);"><use href="#ic-star"></use></svg> Minotaure bat ${b.count} Griffon${b.count > 1 ? 's' : ''} (+${b.points} pts)`
+            : `<svg class="icon" style="width:1em;height:1em;vertical-align:-.12em;flex-shrink:0;color:var(--gold);"><use href="#ic-star"></use></svg> Sirène bat Minotaure (+50 pts)`
         }</div>`).join('')
       : '';
 
@@ -358,7 +358,7 @@ function renderRoundScore(room, roundScores, bluffScores = {}) {
       const cls      = total > 0 ? 'pos' : total < 0 ? 'neg' : 'zero';
       const bonusPts = p.bonuses.reduce((s, b) => s + b.points, 0);
       const details  = [`${p.tricksWon} pli${p.tricksWon !== 1 ? 's' : ''} / pari ${p.bet}`];
-      if (bonusPts !== 0) details.push(`⭐ +${bonusPts}`);
+      if (bonusPts !== 0) details.push(`<svg class="icon" style="width:1em;height:1em;vertical-align:-.12em;flex-shrink:0;color:var(--gold);"><use href="#ic-star"></use></svg> +${bonusPts}`);
       if (bs !== 0)       details.push(`<svg class="icon" style="width:1em;height:1em;vertical-align:-.12em;flex-shrink:0;color:currentColor;"><use href="#ic-mask"></use></svg> ${bs > 0 ? '+' : ''}${bs}`);
       const baseOnly = rs - bonusPts;
       const parts    = [];
@@ -391,7 +391,11 @@ function renderGameOver(room) {
   showScreen('screen-gameover');
   updateRulesFab('game-over');
   const sorted = [...room.players].sort((a, b) => b.score - a.score);
-  const medals  = ['🥇', '🥈', '🥉'];
+  const medals  = [
+    `<svg class="icon" style="width:1.3em;height:1.3em;vertical-align:-.12em;flex-shrink:0;color:gold;"><use href="#ic-award"></use></svg>`,
+    `<svg class="icon" style="width:1.3em;height:1.3em;vertical-align:-.12em;flex-shrink:0;color:silver;"><use href="#ic-medal-silver"></use></svg>`,
+    `<svg class="icon" style="width:1.3em;height:1.3em;vertical-align:-.12em;flex-shrink:0;color:#cd7f32;"><use href="#ic-medal-bronze"></use></svg>`,
+  ];
   document.getElementById('final-scores-table').innerHTML =
     sorted.map((p, i) => `
       <div class="score-row ${i === 0 ? 'winner-row' : ''}">
@@ -464,6 +468,6 @@ function renderRestartVote(room) {
     launchWait.classList.add('hidden');
     launchBtn.classList.remove('hidden');
     const yes   = room.players.filter(p => p.restartVote === true).length;
-    launchBtn.textContent = `▶ Lancer (${yes}/${room.players.length} oui)`;
+    launchBtn.innerHTML  = `<svg class="icon" style="width:1em;height:1em;vertical-align:-.12em;flex-shrink:0;color:currentColor;"><use href="#ic-play"></use></svg> Lancer (${yes}/${room.players.length} oui)`;
   }
 }
