@@ -46,6 +46,51 @@
     .prob-outcome { font-family:'Cinzel',serif; font-size:.7rem; color:var(--text); min-width:80px; }
     .prob-pct     { font-family:'Cinzel',serif; font-size:.72rem; color:var(--muted); min-width:36px; text-align:right; }
     .prob-fraction{ font-size:.65rem; color:var(--muted); font-style:italic; min-width:30px; text-align:right; }
+
+  /* ── Bouton Bluff : flottant sur desktop, intégré sur mobile ── */
+  .bluff-btn-float {
+    position: fixed;
+    bottom: 80px;
+    left: 20px;
+    z-index: 50;
+    padding: 10px 18px;
+    border-radius: 24px;
+    border: 2px solid rgba(232,112,74,.5);
+    background: rgba(232,112,74,.1);
+    color: #e8704a;
+    font-family: 'Cinzel', serif;
+    font-size: .9rem;
+    font-weight: 700;
+    cursor: pointer;
+    transition: all .2s;
+    letter-spacing: .06em;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .bluff-btn-float.glow {
+    background: rgba(232,112,74,.22);
+    border-color: rgba(232,112,74,.8);
+    box-shadow: 0 0 12px rgba(232,112,74,.35);
+  }
+  .bluff-btn-float:disabled {
+    opacity: .35;
+    cursor: not-allowed;
+    box-shadow: none;
+  }
+
+  /* Sur mobile : sortir du fixed, intégrer dans le footer */
+  @media (max-width: 600px) {
+    .bluff-btn-float {
+      position: static;
+      width: 100%;
+      justify-content: center;
+      margin-top: 6px;
+      bottom: auto;
+      left: auto;
+    }
+  }
+
   </style>
 </head>
 <body>
@@ -382,6 +427,11 @@
       Lancer la partie
     </button>
     <p id="waiting-msg" class="text-muted hidden">En attente que le chef lance la partie…</p>
+    <button class="btn btn-ghost" onclick="quitToLobby()"
+            style="margin-top:6px; font-size:.85rem; color:var(--muted);">
+      <svg class="icon" style="width:1em;height:1em;margin-right:.3em;vertical-align:-.1em;"><use href="#ic-back"/></svg>
+      Quitter la salle
+    </button>
   </div>
 </div>
 
@@ -448,17 +498,17 @@
     </div>
   </div>
 
-  <!-- Bouton BLUFF flottant -->
-  <button id="bluff-btn" class="hidden" onclick="callBluff()"
-    style="position:fixed; bottom:80px; left:20px; z-index:50;
-           padding:10px 18px; border-radius:24px; border:2px solid rgba(232,112,74,.5);
-           background:rgba(232,112,74,.1); color:#e8704a;
-           font-family:'Cinzel',serif; font-size:.9rem; font-weight:700;
-           cursor:pointer; transition: all .2s; letter-spacing:.06em;
-           display:flex; align-items:center; gap:6px;">
+  <!-- Bouton BLUFF — flottant sur desktop, dans le footer sur mobile -->
+  <button id="bluff-btn" class="hidden bluff-btn-float" onclick="callBluff()">
     <svg class="icon" style="width:1em;height:1em;"><use href="#ic-mask"/></svg>
     Bluff !
   </button>
+
+  <div class="screen-footer">
+    <button id="next-trick-btn"            class="btn btn-primary hidden" onclick="nextTrick()">Pli suivant →</button>
+    <button id="next-round-from-trick-btn" class="btn btn-primary hidden" onclick="nextTrick()">Manche suivante →</button>
+    <p      id="wait-next-trick-msg"       class="text-muted hidden">En attente du chef de salle…</p>
+  </div>
 </div>
 
 <!-- ════════════════════════════════════ -->
@@ -478,13 +528,6 @@
       <div id="trick-scores-so-far" class="mini-score"></div>
     </div>
   </div>
-
-  <div class="screen-footer">
-    <button id="next-trick-btn"            class="btn btn-primary hidden" onclick="nextTrick()">Pli suivant →</button>
-    <button id="next-round-from-trick-btn" class="btn btn-primary hidden" onclick="nextTrick()">Manche suivante →</button>
-    <p      id="wait-next-trick-msg"       class="text-muted hidden">En attente du chef de salle…</p>
-  </div>
-</div>
 
 <!-- ════════════════════════════════════ -->
 <!-- ÉCRAN 6 · SCORES DE MANCHE          -->
